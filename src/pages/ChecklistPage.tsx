@@ -16,7 +16,6 @@ export const ChecklistPage: React.FC = () => {
 
     // Dynamic Items State
     const [checklistItems, setChecklistItems] = useState<any[]>([]);
-    const [loadingItems, setLoadingItems] = useState(false);
 
     const selectedVehicle = vehicles.find(v => v.id === selectedVehicleId);
 
@@ -25,7 +24,6 @@ export const ChecklistPage: React.FC = () => {
         if (!checklistType) return;
 
         const fetchItems = async () => {
-            setLoadingItems(true);
             try {
                 // Determine scope based on vehicle type
                 // MAINTENANCE + CAVALO -> scope = TRUCK or ALL
@@ -66,8 +64,6 @@ export const ChecklistPage: React.FC = () => {
                 setChecklistItems(filteredData);
             } catch (err) {
                 console.error("Error fetching checklist items", err);
-            } finally {
-                setLoadingItems(false);
             }
         };
 

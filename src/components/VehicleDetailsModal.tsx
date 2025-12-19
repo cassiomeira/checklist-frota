@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, FileText, Image as ImageIcon, Truck as TruckIcon } from 'lucide-react';
 import type { Vehicle } from '../types';
-import clsx from 'clsx';
+
 
 interface VehicleDetailsModalProps {
     vehicle: Vehicle;

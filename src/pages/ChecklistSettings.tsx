@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, CheckCircle, AlertTriangle, Save } from 'lucide-react';
+import { Plus, Trash2, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { clsx } from 'clsx';
 
@@ -14,7 +14,6 @@ interface ChecklistDefinition {
 
 export function ChecklistSettings() {
     const [items, setItems] = useState<ChecklistDefinition[]>([]);
-    const [loading, setLoading] = useState(true);
 
     // Form States
     const [newItemName, setNewItemName] = useState('');
@@ -28,7 +27,6 @@ export function ChecklistSettings() {
 
     async function loadItems() {
         try {
-            setLoading(true);
             const { data, error } = await supabase
                 .from('checklist_definitions')
                 .select('*')
@@ -40,8 +38,6 @@ export function ChecklistSettings() {
         } catch (error) {
             console.error('Erro ao carregar itens:', error);
             alert('Erro ao carregar itens');
-        } finally {
-            setLoading(false);
         }
     }
 

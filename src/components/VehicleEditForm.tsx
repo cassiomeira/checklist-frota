@@ -13,10 +13,10 @@ export const VehicleEditForm: React.FC<VehicleEditFormProps> = ({ vehicle, onClo
 
     // Basic fields
     const [plate, setPlate] = useState(vehicle.plate);
-    const [model, setModel] = useState('model' in vehicle ? vehicle.model : '');
-    const [currentKm, setCurrentKm] = useState('currentKm' in vehicle ? vehicle.currentKm.toString() : '0');
-    const [nextOilKm, setNextOilKm] = useState('nextOilChangeKm' in vehicle ? vehicle.nextOilChangeKm.toString() : '0');
-    const [axles, setAxles] = useState('axles' in vehicle ? vehicle.axles.toString() : '4');
+    const [model, setModel] = useState(vehicle.type === 'CAVALO' ? vehicle.model : '');
+    const [currentKm, setCurrentKm] = useState(vehicle.type === 'CAVALO' ? vehicle.currentKm.toString() : '0');
+    const [nextOilKm, setNextOilKm] = useState(vehicle.type === 'CAVALO' ? vehicle.nextOilChangeKm.toString() : '0');
+    const [axles, setAxles] = useState(vehicle.type === 'CARRETA' ? vehicle.axles.toString() : '4');
 
     // Media fields
     const [documentUrl, setDocumentUrl] = useState(vehicle.documentUrl || '');
@@ -71,11 +71,11 @@ export const VehicleEditForm: React.FC<VehicleEditFormProps> = ({ vehicle, onClo
         };
 
         if (vehicle.type === 'CAVALO') {
-            updates.model = model;
-            updates.currentKm = Number(currentKm);
-            updates.nextOilChangeKm = Number(nextOilKm);
+            (updates as any).model = model;
+            (updates as any).currentKm = Number(currentKm);
+            (updates as any).nextOilChangeKm = Number(nextOilKm);
         } else {
-            updates.axles = Number(axles);
+            (updates as any).axles = Number(axles);
         }
 
         await updateVehicle(vehicle.id, updates);
@@ -146,6 +146,22 @@ export const VehicleEditForm: React.FC<VehicleEditFormProps> = ({ vehicle, onClo
                                     </div>
                                 </div>
                             </>
+                        )}
+
+                        {vehicle.type === 'CARRETA' && (
+                            <div>
+                                <label className="block text-sm font-bold text-gray-400 mb-2">EIXOS *</label>
+                                <select
+                                    value={axles}
+                                    onChange={(e) => setAxles(e.target.value)}
+                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none"
+                                >
+                                    <option value="1">1 Eixo</option>
+                                    <option value="2">2 Eixos</option>
+                                    <option value="3">3 Eixos</option>
+                                    <option value="4">4 Eixos</option>
+                                </select>
+                            </div>
                         )}
 
                         {/* Document */}
