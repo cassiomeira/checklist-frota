@@ -1,102 +1,10 @@
 import React, { useState } from 'react';
 import { useFleet } from '../store/FleetContext';
+import { supabase } from '../lib/supabase';
 import { CheckCircle, AlertTriangle, Save, Camera, ClipboardList, Info, Truck, User } from 'lucide-react';
 import type { ChecklistItem } from '../types';
 
-const TRUCK_ITEMS = [
-    {
-        section: 'Documentação & Segurança', items: [
-            { id: 'docs_crlv', label: 'Documentos (CRLV, CNH, Seguros)' },
-            { id: 'fire_extinguisher', label: 'Extintor de Incêndio (Validade/Lacre)' },
-            { id: 'triangle_tools', label: 'Triângulo, Macaco e Chave de Roda' },
-            { id: 'epi', label: 'EPIs (Colete, Capacete, Botas)' },
-        ]
-    },
-    {
-        section: 'Cabine & Painel', items: [
-            { id: 'dashboard_lights', label: 'Luzes do Painel (Avisos/Falhas)' },
-            { id: 'fuel_level', label: 'Nível de Combustível' },
-            { id: 'arla_level', label: 'Nível de Arla 32' },
-            { id: 'tachograph', label: 'Cronotacógrafo (Funcionamento/Disco/Fita)' },
-            { id: 'ac_wipers', label: 'Ar Condicionado e Limpadores' },
-            { id: 'mirrors_cab', label: 'Retrovisores (Ajuste/Estado)' },
-        ]
-    },
-    {
-        section: 'Externa & Mecânica', items: [
-            { id: 'lights_external', label: 'Iluminação (Faróis, Setas, Freio, Ré)' },
-            { id: 'tires_truck', label: 'Pneus (Calibragem, Sulcos, Parafusos)' },
-            { id: 'oil_engine', label: 'Nível de Óleo do Motor' },
-            { id: 'coolant', label: 'Líquido de Arrefecimento' },
-            { id: 'leaks', label: 'Vazamentos Visíveis (Água/Óleo/Ar)' },
-            { id: 'airbags_suspension', label: 'Bolsas de Ar da Suspensão' },
-            { id: 'fifth_wheel_lock', label: 'Quinta Roda (Travamento)' },
-        ]
-    }
-];
 
-const TRAILER_ITEMS = [
-    {
-        section: 'Estrutura & Segurança', items: [
-            { id: 'trailer_docs', label: 'Documentação da Carreta' },
-            { id: 'reflective_strips', label: 'Faixas Refletivas e Placas' },
-            { id: 'bumper', label: 'Para-choque Traseiro' },
-            { id: 'mudflaps', label: 'Aparabarros' },
-        ]
-    },
-    {
-        section: 'Pneus & Suspensão', items: [
-            { id: 'tires_trailer', label: '13 Pneus (Estado/Pressão/Estepe)' },
-            { id: 'suspension_trailer', label: 'Bolsas de Ar / Molas' },
-            { id: 'brakes_trailer', label: 'Freios (Lonas/Tambores/Cuícas)' },
-            { id: 'wheel_hubs', label: 'Cubos de Roda (Vazamentos)' },
-        ]
-    },
-    {
-        section: 'Conexões & Carga', items: [
-            { id: 'hoses_cables', label: 'Mangueiras de Ar e Cabos Elétricos (ABS)' },
-            { id: 'landing_gear', label: 'Pés de Apoio (Funcionamento)' },
-            { id: 'floor_tarps', label: 'Assoalho, Lonas e Amarração de Carga' },
-            { id: 'doors_locks', label: 'Portas Traseiras e Travas' },
-        ]
-    }
-];
-
-const LOADING_ITEMS = [
-    {
-        section: 'Documentação & Motorista', items: [
-            { id: 'load_badge', label: 'Crachá de Identificação' },
-            { id: 'load_cnh', label: 'CNH (Porte/Validade/Categoria)' },
-            { id: 'load_ief', label: 'Registro do IEF (Validade)' },
-            { id: 'load_laudo', label: 'Laudo de Descaracterização' },
-            { id: 'load_crlv', label: 'CRLV do Ano Vigente' },
-            { id: 'load_antt', label: 'Extrato da ANTT (Placa Cavalo/Carreta)' },
-            { id: 'load_ibama', label: 'Cadastro Técnico Federal (IBAMA)' },
-            { id: 'load_epis', label: 'EPIs (Capacete, Máscara, Colete, Botina, Óculos, Perneira)' },
-        ]
-    },
-    {
-        section: 'Segurança Veicular', items: [
-            { id: 'load_seatbelt', label: 'Cinto de Segurança' },
-            { id: 'load_tires', label: 'Pneus / Estepe (Estado/Avarias)' },
-            { id: 'load_lights', label: 'Faróis / Lanternas / Sinal Sonoro Ré' },
-            { id: 'load_extinguisher', label: 'Kit Emergência (Extintor, Cones, Ferramentas)' },
-        ]
-    },
-    {
-        section: 'Compartimento de Carga', items: [
-            { id: 'load_tarp_condition', label: 'Lona de Cobertura (Sem furos/Estado)' },
-            { id: 'load_tarp_lock', label: 'Cabo Travamento Lona / Suporte Lacre' },
-            { id: 'load_structure', label: 'Estrutura da Carreta (Assoalho/Arcos sem danos)' },
-            { id: 'load_cleanliness', label: 'Limpeza (Materiais estranhos/Resto de carvão)' },
-            { id: 'load_fines', label: 'Finos em Excesso' },
-            { id: 'load_humidity', label: 'Água / Umidade' },
-            { id: 'load_rubber', label: 'Borrachões / Calhas Metálicas' },
-            { id: 'load_straps', label: 'Cintas (Estado das 3 cintas)' },
-            { id: 'load_ropes', label: 'Cordas para Fixar Lona (Dianteira/Traseira)' },
-        ]
-    }
-];
 
 export const ChecklistPage: React.FC = () => {
     const { vehicles, addChecklist, drivers } = useFleet();
@@ -106,14 +14,78 @@ export const ChecklistPage: React.FC = () => {
     const [itemsStatus, setItemsStatus] = useState<Record<string, 'OK' | 'PROBLEM'>>({});
     const [comments, setComments] = useState<Record<string, string>>({});
 
+    // Dynamic Items State
+    const [checklistItems, setChecklistItems] = useState<any[]>([]);
+    const [loadingItems, setLoadingItems] = useState(false);
+
     const selectedVehicle = vehicles.find(v => v.id === selectedVehicleId);
 
-    let checklistSections: { section: string; items: { id: string; label: string; }[] }[] = [];
-    if (checklistType === 'LOADING') {
-        checklistSections = LOADING_ITEMS;
-    } else if (checklistType === 'MAINTENANCE' && selectedVehicle) {
-        checklistSections = selectedVehicle.type === 'CAVALO' ? TRUCK_ITEMS : TRAILER_ITEMS;
-    }
+    // Fetch items when type or vehicle changes
+    React.useEffect(() => {
+        if (!checklistType) return;
+
+        const fetchItems = async () => {
+            setLoadingItems(true);
+            try {
+                // Determine scope based on vehicle type
+                // MAINTENANCE + CAVALO -> scope = TRUCK or ALL
+                // MAINTENANCE + CARRETA -> scope = TRAILER or ALL
+                // LOADING -> scope = ALL (usually)
+
+                let vehicleScopeFilter: string[] = ['ALL'];
+                if (checklistType === 'MAINTENANCE' && selectedVehicle) {
+                    if (selectedVehicle.type === 'CAVALO') vehicleScopeFilter.push('TRUCK');
+                    else vehicleScopeFilter.push('TRAILER');
+                } else if (checklistType === 'LOADING') {
+
+                }
+
+                const { data, error } = await supabase
+                    .from('checklist_definitions')
+                    .select('*')
+                    .eq('type', checklistType)
+                    .eq('is_active', true)
+                    .order('category', { ascending: true })
+                    .order('name', { ascending: true });
+
+                if (error) throw error;
+
+                let filteredData = data || [];
+
+                // Filter locally by scope
+                if (checklistType === 'MAINTENANCE' && selectedVehicle) {
+                    const isTruck = selectedVehicle.type === 'CAVALO';
+                    filteredData = filteredData.filter(item => {
+                        if (!item.vehicle_scope || item.vehicle_scope === 'ALL') return true;
+                        if (isTruck && item.vehicle_scope === 'TRUCK') return true;
+                        if (!isTruck && item.vehicle_scope === 'TRAILER') return true;
+                        return false;
+                    });
+                }
+
+                setChecklistItems(filteredData);
+            } catch (err) {
+                console.error("Error fetching checklist items", err);
+            } finally {
+                setLoadingItems(false);
+            }
+        };
+
+        fetchItems();
+    }, [checklistType, selectedVehicleId]);
+
+    // Group items by category
+    const groupedItems = React.useMemo(() => {
+        const groups: Record<string, any[]> = {};
+        checklistItems.forEach(item => {
+            const cat = item.category || 'Geral';
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push({ id: item.id, label: item.name }); // Map DB 'name' to UI 'label'
+        });
+        return Object.entries(groups).map(([section, items]) => ({ section, items }));
+    }, [checklistItems]);
+
+    const checklistSections = groupedItems;
 
     const handleStatusChange = (itemId: string, status: 'OK' | 'PROBLEM') => {
         setItemsStatus(prev => ({ ...prev, [itemId]: status }));

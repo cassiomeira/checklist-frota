@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
-import { Plus, Truck, Warehouse, Save, X } from 'lucide-react';
+import { Plus, Truck, Warehouse, Save, X, Eye } from 'lucide-react';
 import { useFleet } from '../store/FleetContext';
-import type { Truck as TruckType, Trailer as TrailerType } from '../types';
+import type { Truck as TruckType, Trailer as TrailerType, Vehicle } from '../types';
+import { VehicleDetailsModal } from '../components/VehicleDetailsModal';
+import { VehicleEditForm } from '../components/VehicleEditForm';
 
 export const VehiclesPage: React.FC = () => {
     const { vehicles, addVehicle, drivers } = useFleet();
     const [isAdding, setIsAdding] = useState(false);
     const [type, setType] = useState<'CAVALO' | 'CARRETA'>('CAVALO');
+    const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+    const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
 
     // Form State
     const [plate, setPlate] = useState('');
@@ -181,17 +185,28 @@ export const VehiclesPage: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {vehicles.map(v => (
-                    <div key={v.id} className="bg-slate-800/40 backdrop-blur-md p-6 rounded-2xl border border-slate-700/50 hover:bg-slate-800/60 hover:border-slate-600 hover:shadow-2xl transition-all duration-300 group">
-                        <div className="flex justify-between items-start mb-6">
-                            <div className="flex items-center gap-4">
-                                <div className={`p-3 rounded-xl ${v.type === 'CAVALO' ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                                    {v.type === 'CAVALO' ? <Truck size={24} /> : <Warehouse size={24} />}
-                                </div>
-                                <div>
-                                    <h4 className="font-bold text-xl text-white tracking-tight">{v.plate}</h4>
-                                    <span className="text-xs font-bold uppercase tracking-wider text-gray-500">{v.type === 'CAVALO' ? 'Scania R450' : 'Carreta'}</span>
-                                </div>
+                    <div
+                        key={v.id}
+                        onClick={() => setSelectedVehicle(v)}
+                        className="group bg-slate-800/40 backdrop-blur-md p-6 rounded-2xl border border-slate-700/50 hover:bg-slate-800/60 hover:border-industrial-accent/30 transition-all shadow-lg cursor-pointer"
+                    >
+                        <div className="flex items-start gap-4 mb-4">
+                            <div className={`p-3 rounded-xl ${v.type === 'CAVALO' ? 'bg-industrial-accent/10' : 'bg-purple-500/10'}`}>
+                                {v.type === 'CAVALO' ? (
+                                    <Truck className="text-industrial-accent" size={28} />
+                                ) : (
+                                    <Warehouse className="text-purple-400" size={28} />
+                                )}
                             </div>
+                            <div className="flex-1">
+                                <h3 className="font-black text-2xl text-white tracking-tight">
+                                    {v.plate}
+                                </h3>
+                                <p className="text-sm text-gray-400 font-medium">
+                                    {v.type === 'CAVALO' ? 'Scania' : 'Carreta'}
+                                </p>
+                            </div>
+                            <Eye className="text-gray-600 group-hover:text-industrial-accent transition-colors" size={20} />
                         </div>
 
                         <div className="space-y-3">
@@ -234,6 +249,25 @@ export const VehiclesPage: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* Modals */}
+            {selectedVehicle && (
+                <VehicleDetailsModal
+                    vehicle={selectedVehicle}
+                    onClose={() => setSelectedVehicle(null)}
+                    onEdit={() => {
+                        setEditingVehicle(selectedVehicle);
+                        setSelectedVehicle(null);
+                    }}
+                />
+            )}
+
+            {editingVehicle && (
+                <VehicleEditForm
+                    vehicle={editingVehicle}
+                    onClose={() => setEditingVehicle(null)}
+                />
+            )}
         </div>
     );
 };

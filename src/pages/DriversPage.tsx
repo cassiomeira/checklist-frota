@@ -1,27 +1,62 @@
 import React, { useState } from 'react';
 import { useFleet } from '../store/FleetContext';
-import { User, Plus, Trash2, ShieldAlert } from 'lucide-react';
+import { User, Plus, Trash2, ShieldAlert, Edit2 } from 'lucide-react';
 import clsx from 'clsx';
 
 export const DriversPage: React.FC = () => {
     const { drivers, addDriver, removeDriver } = useFleet();
     const [isAdding, setIsAdding] = useState(false);
+    const [editingDriver, setEditingDriver] = useState<string | null>(null);
     const [name, setName] = useState('');
+    const [cpf, setCpf] = useState('');
+    const [password, setPassword] = useState('');
     const [cnh, setCnh] = useState('');
     const [category, setCategory] = useState('');
     const [expiration, setExpiration] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        await addDriver({
-            id: crypto.randomUUID(),
-            name,
-            cnhNumber: cnh,
-            cnhCategory: category.toUpperCase(),
-            cnhExpiration: expiration
-        });
+
+        if (editingDriver) {
+            // Update existing driver
+            const { updateDriver } = useFleet();
+            await updateDriver(editingDriver, {
+                name,
+                cnhNumber: cnh,
+                cnhCategory: category.toUpperCase(),
+                cnhExpiration: expiration
+            });
+            setEditingDriver(null);
+        } else {
+            // Add new driver
+            await addDriver({
+                id: crypto.randomUUID(),
+                name,
+                cpf: cpf.replace(/\D/g, ''),
+                password,
+                cnhNumber: cnh,
+                cnhCategory: category.toUpperCase(),
+                cnhExpiration: expiration
+            });
+        }
+
         setIsAdding(false);
-        setName(''); setCnh(''); setCategory(''); setExpiration('');
+        setName(''); setCpf(''); setPassword(''); setCnh(''); setCategory(''); setExpiration('');
+    };
+
+    const handleEdit = (driver: any) => {
+        setEditingDriver(driver.id);
+        setName(driver.name);
+        setCnh(driver.cnhNumber);
+        setCategory(driver.cnhCategory);
+        setExpiration(driver.cnhExpiration);
+        setIsAdding(true);
+    };
+
+    const handleCancel = () => {
+        setIsAdding(false);
+        setEditingDriver(null);
+        setName(''); setCpf(''); setPassword(''); setCnh(''); setCategory(''); setExpiration('');
     };
 
     const getStatus = (dateString: string) => {
@@ -43,7 +78,7 @@ export const DriversPage: React.FC = () => {
                     <p className="text-gray-400 text-lg">Cadastro e controle de CNH</p>
                 </div>
                 <button
-                    onClick={() => setIsAdding(!isAdding)}
+                    onClick={() => isAdding ? handleCancel() : setIsAdding(true)}
                     className="bg-industrial-accent text-slate-900 px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-yellow-400 transition-all shadow-lg"
                 >
                     <Plus size={20} />
@@ -63,6 +98,30 @@ export const DriversPage: React.FC = () => {
                                 className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none transition-all"
                                 placeholder="Ex: João da Silva"
                             />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">CPF</label>
+                                <input
+                                    required
+                                    value={cpf}
+                                    onChange={e => setCpf(e.target.value)}
+                                    className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none transition-all"
+                                    placeholder="000.000.000-00"
+                                    maxLength={14}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">Senha (App Mobile)</label>
+                                <input
+                                    required
+                                    type="password"
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
+                                    className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none transition-all"
+                                    placeholder="Digite a senha"
+                                />
+                            </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div>
@@ -97,7 +156,7 @@ export const DriversPage: React.FC = () => {
                             </div>
                         </div>
                         <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all">
-                            Salvar Motorista
+                            {editingDriver ? 'Atualizar Motorista' : 'Salvar Motorista'}
                         </button>
                     </form>
                 </div>
@@ -108,13 +167,22 @@ export const DriversPage: React.FC = () => {
                     const status = getStatus(driver.cnhExpiration);
                     return (
                         <div key={driver.id} className="bg-slate-800/40 backdrop-blur-md p-6 rounded-2xl border border-slate-700/50 hover:bg-slate-800/60 transition-all group relative">
-                            <button
-                                onClick={() => removeDriver(driver.id)}
-                                className="absolute top-4 right-4 text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                                title="Remover"
-                            >
-                                <Trash2 size={18} />
-                            </button>
+                            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                    onClick={() => handleEdit(driver)}
+                                    className="text-slate-600 hover:text-industrial-accent transition-colors"
+                                    title="Editar"
+                                >
+                                    <Edit2 size={18} />
+                                </button>
+                                <button
+                                    onClick={() => removeDriver(driver.id)}
+                                    className="text-slate-600 hover:text-red-500 transition-colors"
+                                    title="Remover"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                            </div>
 
                             <div className="flex items-center gap-4 mb-4">
                                 <div className="p-3 bg-slate-700/50 rounded-full text-gray-300">

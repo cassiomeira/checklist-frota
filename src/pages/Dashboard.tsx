@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle, Clock, TrendingUp, AlertOctagon, Wrench, Ey
 import clsx from 'clsx';
 import type { Truck, Checklist } from '../types';
 import { ChecklistDetails } from '../components/ChecklistDetails';
+import { MaintenanceRegistration } from '../components/MaintenanceRegistration';
 
 const KPICard: React.FC<{ title: string; value: number; icon: React.ReactNode; colorClass: string }> = ({ title, value, icon, colorClass }) => (
     <div className="bg-slate-800/40 backdrop-blur-md p-6 rounded-2xl border border-slate-700/50 shadow-lg hover:shadow-xl hover:bg-slate-800/60 transition-all duration-300 group">
@@ -20,10 +21,37 @@ const KPICard: React.FC<{ title: string; value: number; icon: React.ReactNode; c
 );
 
 export const Dashboard: React.FC = () => {
-    const { vehicles, checklists, drivers } = useFleet();
+    const { vehicles, checklists, drivers, getCorrectiveActionsByChecklist } = useFleet();
     const [selectedChecklist, setSelectedChecklist] = useState<Checklist | null>(null);
+    const [selectedMaintenanceVehicle, setSelectedMaintenanceVehicle] = useState<Truck | null>(null);
 
     const trucks = vehicles.filter(v => v.type === 'CAVALO') as Truck[];
+
+    // Helper to determine checklist status based on corrective actions
+    const getChecklistStatus = (checklist: Checklist): 'OK' | 'CORRECTED' | 'PROBLEM' => {
+        const problemItems = checklist.items.filter(item => item.status === 'PROBLEM');
+        if (problemItems.length === 0) return 'OK';
+
+        const actions = getCorrectiveActionsByChecklist(checklist.id);
+
+        // Check if all problems have verified corrections
+        const allVerified = problemItems.every(item => {
+            const itemActions = actions.filter(a => a.itemId === item.id);
+            return itemActions.some(a => a.verified);
+        });
+
+        if (allVerified) return 'OK';
+
+        // Check if all problems have corrections (but not all verified)
+        const allCorrected = problemItems.every(item => {
+            const itemActions = actions.filter(a => a.itemId === item.id);
+            return itemActions.length > 0;
+        });
+
+        if (allCorrected) return 'CORRECTED';
+
+        return 'PROBLEM';
+    };
 
     // Logic
     const alerts = trucks.map(truck => {
@@ -98,11 +126,12 @@ export const Dashboard: React.FC = () => {
                             {alerts.map((alert) => (
                                 <div
                                     key={alert.truck.id}
+                                    onClick={() => setSelectedMaintenanceVehicle(alert.truck)}
                                     className={clsx(
-                                        "group p-4 rounded-xl border-l-4 flex justify-between items-center transition-all",
+                                        "group p-4 rounded-xl border-l-4 flex justify-between items-center transition-all cursor-pointer hover:bg-white/5",
                                         alert.status === 'URGENT'
-                                            ? "bg-red-950/20 border-red-500"
-                                            : "bg-amber-950/20 border-amber-500"
+                                            ? "bg-red-950/20 border-red-500 hover:border-red-400"
+                                            : "bg-amber-950/20 border-amber-500 hover:border-amber-400"
                                     )}
                                 >
                                     <div>
@@ -111,12 +140,15 @@ export const Dashboard: React.FC = () => {
                                             {alert.diff < 0 ? `Excedido: ${Math.abs(alert.diff)} km` : `Resta: ${alert.diff} km`}
                                         </p>
                                     </div>
-                                    <span className={clsx(
-                                        "px-2 py-1 rounded text-[10px] font-black uppercase",
-                                        alert.status === 'URGENT' ? "bg-red-500/20 text-red-400" : "bg-amber-400/20 text-amber-400"
-                                    )}>
-                                        {alert.status === 'URGENT' ? 'URGENTE' : 'ATENÇÃO'}
-                                    </span>
+                                    <div className="flex items-center gap-3">
+                                        <span className={clsx(
+                                            "px-2 py-1 rounded text-[10px] font-black uppercase",
+                                            alert.status === 'URGENT' ? "bg-red-500/20 text-red-400" : "bg-amber-400/20 text-amber-400"
+                                        )}>
+                                            {alert.status === 'URGENT' ? 'URGENTE' : 'ATENÇÃO'}
+                                        </span>
+                                        <Wrench size={16} className="text-gray-500 group-hover:text-white transition-colors" />
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -183,7 +215,7 @@ export const Dashboard: React.FC = () => {
                         <tbody className="divide-y divide-slate-700/50">
                             {checklists.slice(-5).reverse().map((checklist, i) => {
                                 const vehicle = vehicles.find(v => v.id === checklist.vehicleId);
-                                const hasProblems = checklist.items.some(k => k.status === 'PROBLEM');
+                                const status = getChecklistStatus(checklist);
 
                                 return (
                                     <tr
@@ -195,7 +227,12 @@ export const Dashboard: React.FC = () => {
                                         )}
                                     >
                                         <td className="p-5 font-bold text-white flex items-center gap-3">
-                                            <div className={`w-1.5 h-12 rounded-full transition-colors ${hasProblems ? 'bg-red-500 group-hover:bg-red-400' : 'bg-emerald-500 group-hover:bg-emerald-400'}`}></div>
+                                            <div className={clsx(
+                                                "w-1.5 h-12 rounded-full transition-colors",
+                                                status === 'PROBLEM' ? 'bg-red-500 group-hover:bg-red-400' :
+                                                    status === 'CORRECTED' ? 'bg-amber-500 group-hover:bg-amber-400' :
+                                                        'bg-emerald-500 group-hover:bg-emerald-400'
+                                            )}></div>
                                             <div className="flex flex-col">
                                                 <span>{vehicle?.plate || 'Removido'}</span>
                                                 <span className="text-xs font-normal text-gray-400">{vehicle?.type === 'CAVALO' ? vehicle.model : 'Carreta'}</span>
@@ -207,12 +244,16 @@ export const Dashboard: React.FC = () => {
                                         <td className="p-5 text-right flex justify-end items-center gap-4">
                                             <span className={clsx(
                                                 "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border",
-                                                hasProblems
-                                                    ? "bg-red-500/10 text-red-400 border-red-500/20"
-                                                    : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                                status === 'PROBLEM' ? "bg-red-500/10 text-red-400 border-red-500/20" :
+                                                    status === 'CORRECTED' ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                                                        "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                                             )}>
-                                                {hasProblems ? <AlertTriangle size={14} /> : <CheckCircle size={14} />}
-                                                {hasProblems ? 'PROBLEMA' : 'APROVADO'}
+                                                {status === 'PROBLEM' ? <AlertTriangle size={14} /> :
+                                                    status === 'CORRECTED' ? <Clock size={14} /> :
+                                                        <CheckCircle size={14} />}
+                                                {status === 'PROBLEM' ? 'PROBLEMA' :
+                                                    status === 'CORRECTED' ? 'CORRIGIDO' :
+                                                        'APROVADO'}
                                             </span>
                                             <Eye size={18} className="text-gray-500 group-hover:text-white transition-colors" />
                                         </td>
@@ -237,6 +278,14 @@ export const Dashboard: React.FC = () => {
                     checklist={selectedChecklist}
                     vehicle={vehicles.find(v => v.id === selectedChecklist.vehicleId)!}
                     onClose={() => setSelectedChecklist(null)}
+                />
+            )}
+
+            {selectedMaintenanceVehicle && (
+                <MaintenanceRegistration
+                    vehicle={selectedMaintenanceVehicle}
+                    maintenanceType="oil"
+                    onClose={() => setSelectedMaintenanceVehicle(null)}
                 />
             )}
         </div>
