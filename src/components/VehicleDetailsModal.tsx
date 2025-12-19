@@ -12,7 +12,12 @@ interface VehicleDetailsModalProps {
 export const VehicleDetailsModal: React.FC<VehicleDetailsModalProps> = ({ vehicle, onClose, onEdit }) => {
     const handleViewDocument = () => {
         if (vehicle.documentUrl) {
-            window.open(vehicle.documentUrl, '_blank');
+            const link = document.createElement('a');
+            link.href = vehicle.documentUrl;
+            link.download = `documento_${vehicle.plate}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
     };
 
@@ -70,7 +75,7 @@ export const VehicleDetailsModal: React.FC<VehicleDetailsModalProps> = ({ vehicl
                                         onClick={handleViewDocument}
                                         className="bg-industrial-accent text-slate-900 px-3 py-1.5 rounded font-bold text-sm hover:bg-yellow-400"
                                     >
-                                        Ver
+                                        Baixar
                                     </button>
                                 </div>
                             ) : (
