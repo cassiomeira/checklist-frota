@@ -1,3 +1,4 @@
+// Types Definitions - Updated
 export type VehicleType = 'CAVALO' | 'CARRETA';
 
 export interface Driver {
@@ -70,4 +71,72 @@ export interface CorrectiveAction {
     photoUrl?: string;
     createdAt: string;
     verifiedAt?: string;
+}
+
+// --- FINANCIAL ERP TYPES ---
+
+export interface FinancialAccount {
+    id: string;
+    name: string;
+    type: 'BANK' | 'CASH' | 'WALLET' | 'CREDIT_CARD';
+    initialBalance: number;
+    bankName?: string;
+    accountNumber?: string;
+    agency?: string;
+}
+
+export interface Supplier {
+    id: string;
+    tradeName: string; // Nome Fantasia
+    legalName?: string; // Razão Social
+    document?: string; // CNPJ/CPF
+    phone?: string;
+    email?: string;
+    address?: string;
+    category: 'FUEL' | 'MAINTENANCE' | 'PARTS' | 'SERVICE' | 'INSURANCE' | 'GENERAL';
+}
+
+export interface Customer {
+    id: string;
+    tradeName: string; // Nome Fantasia
+    legalName?: string; // Razão Social
+    document?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+}
+
+export interface Transaction {
+    id: string;
+    description: string;
+    amount: number;
+    type: 'INCOME' | 'EXPENSE';
+    status: 'PENDING' | 'PAID' | 'CANCELLED';
+    dueDate: string;
+    paymentDate?: string;
+    category: string; // 'FUEL', 'MAINTENANCE', etc.
+    paymentMethod?: 'PIX' | 'BOLETO' | 'CARD' | 'CASH' | 'TRANSFER';
+    accountId?: string;
+    vehicleId?: string;
+    supplierId?: string;
+    customerId?: string;
+    checklistId?: string;
+    createdBy?: string;
+    notes?: string;
+}
+
+export interface FuelEntry {
+    id: string;
+    vehicleId: string;
+    driverId?: string;
+    supplierId?: string;
+    transactionId?: string;
+    date: string;
+    liters: number;
+    pricePerLiter: number;
+    totalCost: number;
+    mileage: number;
+    fullTank: boolean;
+    accountId?: string;
+    paymentMethod?: string;
 }

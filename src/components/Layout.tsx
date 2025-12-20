@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Truck, ClipboardCheck, User, Settings } from 'lucide-react';
+import { LayoutDashboard, Truck, ClipboardCheck, User, Settings, Wallet } from 'lucide-react';
 import clsx from 'clsx';
 
 const NavItem: React.FC<{ to: string; icon: React.ReactNode; label: string }> = ({ to, icon, label }) => {
@@ -48,6 +48,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     <NavItem to="/vehicles" icon={<Truck size={20} />} label="Frota" />
                     <NavItem to="/drivers" icon={<User size={20} />} label="Motoristas" />
                     <NavItem to="/checklist" icon={<ClipboardCheck size={20} />} label="Checklist Diário" />
+                    <NavItem to="/financial" icon={<Wallet size={20} />} label="Financeiro" />
 
                     <div className="pt-4 mt-4 border-t border-slate-700/50">
                         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 px-4">Configurações</p>
