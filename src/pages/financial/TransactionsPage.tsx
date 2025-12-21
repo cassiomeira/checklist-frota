@@ -134,20 +134,11 @@ export const TransactionsPage: React.FC = () => {
                         commissionValue: 0 // Don't double track on the income itself effectively
                     };
 
-                    const commissionTx = {
-                        description: `Comissão - ${description}`,
-                        amount: parseFloat((valAmount * 0.10).toFixed(2)),
-                        type: 'EXPENSE' as 'EXPENSE',
-                        status: 'PENDING' as 'PENDING',
-                        dueDate: dueDate, // Due same day as income? Or user preference? defaulting to same day
-                        paymentDate: undefined,
-                        category: 'SERVICES', // Default category for commissions
-                        accountId: undefined, // No account yet strictly, or keep undefined
-                        supplierId: undefined,
-                        customerId: undefined,
-                        driverId: driverId, // The driver gets the commission
-                        payeeType: 'DRIVER' // Helper for UI but not DB field strictly in all ver, but good for context
-                    };
+                    /* 
+                       Explanation: We don't need to assign to a variable 'commissionTx' if we are just using the object in the array below.
+                       The previous code had: const commissionTx = { ... } but it was never read.
+                       We construct the object directly in the addTransactions call now.
+                    */
                     // We need to shape commissionTx correctly for addTransactions
                     // Our payload builder above handles some mappings, let's construct explicit objects
 
