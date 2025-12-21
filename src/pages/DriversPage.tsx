@@ -20,12 +20,16 @@ export const DriversPage: React.FC = () => {
         if (editingDriver) {
             // Update existing driver
             const { updateDriver } = useFleet();
-            await updateDriver(editingDriver, {
+            const updateData: any = {
                 name,
+                cpf: cpf.replace(/\D/g, ''),
                 cnhNumber: cnh,
                 cnhCategory: category.toUpperCase(),
                 cnhExpiration: expiration
-            });
+            };
+            if (password) updateData.password = password;
+
+            await updateDriver(editingDriver, updateData);
             setEditingDriver(null);
         } else {
             // Add new driver
@@ -47,6 +51,8 @@ export const DriversPage: React.FC = () => {
     const handleEdit = (driver: any) => {
         setEditingDriver(driver.id);
         setName(driver.name);
+        setCpf(driver.cpf || '');
+        // Password intentionally left blank to not expose it, user enters new one to change
         setCnh(driver.cnhNumber);
         setCategory(driver.cnhCategory);
         setExpiration(driver.cnhExpiration);
@@ -88,15 +94,17 @@ export const DriversPage: React.FC = () => {
 
             {isAdding && (
                 <div className="bg-slate-800/60 backdrop-blur-xl p-8 rounded-2xl mb-12 border border-slate-700/50 shadow-2xl animate-fade-in max-w-2xl">
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                    <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
                         <div>
                             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">Nome Completo</label>
                             <input
                                 required
+                                name="driver_name"
                                 value={name}
                                 onChange={e => setName(e.target.value)}
                                 className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none transition-all"
                                 placeholder="Ex: João da Silva"
+                                autoComplete="off"
                             />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -104,22 +112,26 @@ export const DriversPage: React.FC = () => {
                                 <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">CPF</label>
                                 <input
                                     required
+                                    name="driver_cpf"
                                     value={cpf}
                                     onChange={e => setCpf(e.target.value)}
                                     className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none transition-all"
                                     placeholder="000.000.000-00"
                                     maxLength={14}
+                                    autoComplete="off"
                                 />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">Senha (App Mobile)</label>
                                 <input
-                                    required
+                                    {...(!editingDriver && { required: true })}
                                     type="password"
+                                    name="driver_password"
                                     value={password}
                                     onChange={e => setPassword(e.target.value)}
                                     className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none transition-all"
-                                    placeholder="Digite a senha"
+                                    placeholder={editingDriver ? "Deixe em branco para manter" : "Digite a senha"}
+                                    autoComplete="new-password"
                                 />
                             </div>
                         </div>

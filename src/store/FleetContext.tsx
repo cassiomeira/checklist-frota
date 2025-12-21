@@ -210,6 +210,8 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const { error } = await supabase.from('drivers')
             .update({
                 name: data.name,
+                cpf: data.cpf,
+                password: data.password,
                 cnh_number: data.cnhNumber,
                 cnh_category: data.cnhCategory,
                 cnh_expiration: data.cnhExpiration
