@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import type { FinancialAccount, Supplier, Customer, Transaction, FuelEntry } from '../types';
+import type { FinancialAccount, Supplier, Customer, Transaction, FuelEntry, Driver, Trip } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface FinancialContextType {
     accounts: FinancialAccount[];
     suppliers: Supplier[];
     customers: Customer[];
+    drivers: Driver[];
     transactions: Transaction[];
+    trips: Trip[]; // [NEW]
 
     // Actions
     addAccount: (account: Omit<FinancialAccount, 'id'>) => Promise<void>;
@@ -19,15 +21,21 @@ interface FinancialContextType {
     updateCustomer: (id: string, data: Partial<Customer>) => Promise<void>;
     deleteCustomer: (id: string) => Promise<void>;
 
-    addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
+    addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<Transaction | null>;
+    addTransactions: (transactions: Omit<Transaction, 'id'>[]) => Promise<void>;
     updateTransaction: (id: string, data: Partial<Transaction>) => Promise<void>;
     deleteTransaction: (id: string) => Promise<void>;
+    deleteTransactions: (ids: string[]) => Promise<void>;
 
     // Fuel Actions
     fuelEntries: FuelEntry[];
     addFuelEntry: (entry: Omit<FuelEntry, 'id' | 'transactionId'>) => Promise<void>;
     updateFuelEntry: (id: string, entry: Partial<FuelEntry>) => Promise<void>;
     deleteFuelEntry: (id: string) => Promise<void>;
+
+    // Trip Actions [NEW]
+    addTrip: (trip: Omit<Trip, 'id'>) => Promise<void>;
+    updateTrip: (id: string, data: Partial<Trip>) => Promise<void>;
 }
 
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
@@ -36,8 +44,10 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const [accounts, setAccounts] = useState<FinancialAccount[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [customers, setCustomers] = useState<Customer[]>([]);
+    const [drivers, setDrivers] = useState<Driver[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [fuelEntries, setFuelEntries] = useState<FuelEntry[]>([]);
+    const [trips, setTrips] = useState<Trip[]>([]);
 
     useEffect(() => {
         fetchData();
@@ -45,6 +55,8 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const fetchData = async () => {
         try {
+            // ... (keep existing fetches) ...
+
             // Fetch Accounts
             const { data: accData } = await supabase.from('financial_accounts').select('*');
             if (accData) {
@@ -88,36 +100,19 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 })));
             }
 
-            // ... (Transactions fetch remains same) ...
-
-            // ...
-
-            const addCustomer = async (customer: Omit<Customer, 'id'>) => {
-                const { error } = await supabase.from('customers').insert({
-                    trade_name: customer.tradeName,
-                    legal_name: customer.legalName,
-                    document: customer.document,
-                    phone: customer.phone,
-                    email: customer.email,
-                    address: customer.address
-                });
-                if (error) throw error;
-                await fetchData();
-            };
-
-            const updateCustomer = async (id: string, data: Partial<Customer>) => {
-                const payload: any = {};
-                if (data.tradeName) payload.trade_name = data.tradeName;
-                if (data.legalName) payload.legal_name = data.legalName;
-                if (data.document) payload.document = data.document;
-                if (data.phone) payload.phone = data.phone;
-                if (data.email) payload.email = data.email;
-                if (data.address) payload.address = data.address;
-
-                const { error } = await supabase.from('customers').update(payload).eq('id', id);
-                if (error) throw error;
-                await fetchData();
-            };
+            // Fetch Drivers
+            const { data: dData, error: dError } = await supabase.from('drivers').select('*');
+            if (!dError && dData) {
+                setDrivers(dData.map((d: any) => ({
+                    id: d.id,
+                    name: d.name,
+                    cpf: d.cpf || '',
+                    password: d.password || '',
+                    cnhNumber: d.cnh_number,
+                    cnhCategory: d.cnh_category,
+                    cnhExpiration: d.cnh_expiration
+                })));
+            }
 
             // Fetch Transactions
             const { data: transData } = await supabase.from('transactions').select('*').order('due_date', { ascending: false });
@@ -136,6 +131,8 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     vehicleId: t.vehicle_id,
                     supplierId: t.supplier_id,
                     customerId: t.customer_id,
+                    driverId: t.driver_id,
+                    tripId: t.trip_id, // [NEW] Link to trip
                     checklistId: t.checklist_id,
                     createdBy: t.created_by,
                     notes: t.notes
@@ -160,12 +157,32 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                 })));
             }
 
+            // Fetch Trips
+            const { data: tripsData } = await supabase.from('trips').select('*').order('start_date', { ascending: false });
+            if (tripsData) {
+                setTrips(tripsData.map((t: any) => ({
+                    id: t.id,
+                    vehicleId: t.vehicle_id,
+                    driverId: t.driver_id,
+                    startLocation: t.start_location,
+                    endLocation: t.end_location,
+                    startKm: t.start_km,
+                    endKm: t.end_km,
+                    startDate: t.start_date,
+                    endDate: t.end_date,
+                    freightAmount: t.freight_amount,
+                    extraExpensesAmount: t.extra_expenses_amount,
+                    fuelAmount: t.fuel_amount,
+                    commissionAmount: t.commission_amount,
+                    status: t.status,
+                    notes: t.notes
+                })));
+            }
+
         } catch (error) {
             console.error('Error fetching financial data:', error);
         }
     };
-
-    // --- CRUD ACTIONS ---
 
     const addAccount = async (account: Omit<FinancialAccount, 'id'>) => {
         const { error } = await supabase.from('financial_accounts').insert({
@@ -254,8 +271,8 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         await fetchData();
     };
 
-    const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
-        const { error } = await supabase.from('transactions').insert({
+    const addTransactions = async (transactionsBatch: Omit<Transaction, 'id'>[]) => {
+        const payload = transactionsBatch.map(transaction => ({
             description: transaction.description,
             amount: transaction.amount,
             type: transaction.type,
@@ -268,10 +285,43 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             vehicle_id: transaction.vehicleId,
             supplier_id: transaction.supplierId,
             customer_id: transaction.customerId,
+            driver_id: transaction.driverId,
+            trip_id: transaction.tripId,
+            checklist_id: transaction.checklistId,
+            created_by: transaction.createdBy,
             notes: transaction.notes
-        });
+        }));
+
+        const { error } = await supabase.from('transactions').insert(payload);
         if (error) throw error;
         await fetchData();
+    };
+
+    const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const { data, error } = await supabase.from('transactions').insert({
+            description: transaction.description,
+            amount: transaction.amount,
+            type: transaction.type,
+            status: transaction.status,
+            due_date: transaction.dueDate,
+            payment_date: transaction.paymentDate,
+            category: transaction.category,
+            payment_method: transaction.paymentMethod,
+            account_id: transaction.accountId,
+            vehicle_id: transaction.vehicleId,
+            supplier_id: transaction.supplierId,
+            customer_id: transaction.customerId,
+            driver_id: transaction.driverId,
+            trip_id: transaction.tripId,
+            checklist_id: transaction.checklistId,
+            notes: transaction.notes,
+            created_by: transaction.createdBy || user?.id // Auto-fill if not provided
+        }).select().single();
+        if (error) throw error;
+        await fetchData();
+        return data as Transaction;
     };
 
     const updateTransaction = async (id: string, data: Partial<Transaction>) => {
@@ -287,7 +337,11 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (data.accountId) payload.account_id = data.accountId;
         if (data.vehicleId) payload.vehicle_id = data.vehicleId;
         if (data.supplierId) payload.supplier_id = data.supplierId;
+        if (data.supplierId) payload.supplier_id = data.supplierId;
         if (data.customerId) payload.customer_id = data.customerId;
+        if (data.driverId) payload.driver_id = data.driverId;
+        if (data.tripId) payload.trip_id = data.tripId;
+        if (data.checklistId) payload.checklist_id = data.checklistId;
         if (data.notes) payload.notes = data.notes;
 
         const { error } = await supabase.from('transactions').update(payload).eq('id', id);
@@ -297,6 +351,12 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const deleteTransaction = async (id: string) => {
         const { error } = await supabase.from('transactions').delete().eq('id', id);
+        if (error) throw error;
+        await fetchData();
+    };
+
+    const deleteTransactions = async (ids: string[]) => {
+        const { error } = await supabase.from('transactions').delete().in('id', ids);
         if (error) throw error;
         await fetchData();
     };
@@ -340,24 +400,74 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     const deleteFuelEntry = async (id: string) => {
-        // Trigger will handle transaction deletion if implemented, or we cascade?
-        // Ideally we delete the fuel entry and the DB trigger/FK handles the transaction.
-        // Or we manually delete the transaction first? 
-        // Let's assume the DB constraint is set to CASCADE or we rely on logic.
-        // Actually, for safety, let's delete the fuel entry.
         const { error } = await supabase.from('fuel_entries').delete().eq('id', id);
+        if (error) throw error;
+        await fetchData();
+    };
+
+    // TRIP ACTIONS
+    const addTrip = async (trip: Omit<Trip, 'id'>) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        console.log('Attempting to add trip. Auth User:', user);
+
+        if (!user || !user.id) {
+            console.error('User not authenticated. Cannot set created_by.');
+            alert('Erro: Usuário não autenticado. Faça login novamente.');
+            return;
+        }
+
+        const { error } = await supabase.from('trips').insert({
+            vehicle_id: trip.vehicleId,
+            driver_id: trip.driverId,
+            start_location: trip.startLocation,
+            end_location: trip.endLocation,
+            start_km: trip.startKm,
+            end_km: trip.endKm,
+            start_date: trip.startDate,
+            end_date: trip.endDate,
+            freight_amount: trip.freightAmount,
+            extra_expenses_amount: trip.extraExpensesAmount,
+            fuel_amount: trip.fuelAmount,
+            commission_amount: trip.commissionAmount,
+            status: trip.status,
+            notes: trip.notes,
+            created_by: user?.id
+        });
+        if (error) throw error;
+        await fetchData();
+    };
+
+    const updateTrip = async (id: string, data: Partial<Trip>) => {
+        const payload: any = {};
+        if (data.vehicleId) payload.vehicle_id = data.vehicleId;
+        if (data.driverId) payload.driver_id = data.driverId;
+        if (data.startLocation) payload.start_location = data.startLocation;
+        if (data.endLocation) payload.end_location = data.endLocation;
+        if (data.startKm !== undefined) payload.start_km = data.startKm;
+        if (data.endKm !== undefined) payload.end_km = data.endKm;
+        if (data.startDate) payload.start_date = data.startDate;
+        if (data.endDate) payload.end_date = data.endDate;
+        if (data.freightAmount !== undefined) payload.freight_amount = data.freightAmount;
+        if (data.extraExpensesAmount !== undefined) payload.extra_expenses_amount = data.extraExpensesAmount;
+        if (data.fuelAmount !== undefined) payload.fuel_amount = data.fuelAmount;
+        if (data.commissionAmount !== undefined) payload.commission_amount = data.commissionAmount;
+        if (data.status) payload.status = data.status;
+        if (data.notes) payload.notes = data.notes;
+
+        const { error } = await supabase.from('trips').update(payload).eq('id', id);
         if (error) throw error;
         await fetchData();
     };
 
     return (
         <FinancialContext.Provider value={{
-            accounts, suppliers, customers, transactions,
+            accounts, suppliers, customers, drivers, transactions, trips,
             addAccount, updateAccount,
             addSupplier, updateSupplier,
             addCustomer, updateCustomer, deleteCustomer,
-            addTransaction, updateTransaction, deleteTransaction,
-            fuelEntries, addFuelEntry, updateFuelEntry, deleteFuelEntry
+            addTransaction, addTransactions, updateTransaction, deleteTransaction, deleteTransactions,
+            fuelEntries, addFuelEntry, updateFuelEntry, deleteFuelEntry,
+            addTrip, updateTrip
         }}>
             {children}
         </FinancialContext.Provider>

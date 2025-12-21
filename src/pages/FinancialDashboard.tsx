@@ -1,13 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Wallet, Users, Building2, TrendingUp, TrendingDown, DollarSign, Droplet } from 'lucide-react';
+import { Wallet, Users, Building2, TrendingUp, TrendingDown, DollarSign, Droplet, Calculator, AlertCircle } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { useFinancial } from '../store/FinancialContext';
 import { useFleet } from '../store/FleetContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend as RechartsLegend } from 'recharts';
+import clsx from 'clsx';
 
 export const FinancialDashboard: React.FC = () => {
-    const { accounts, transactions, fuelEntries } = useFinancial();
+    const { accounts, transactions, fuelEntries, trips } = useFinancial();
     const { vehicles } = useFleet();
 
     // Calculations
@@ -42,23 +43,35 @@ export const FinancialDashboard: React.FC = () => {
             }), { cost: 0, liters: 0 });
     }, [fuelEntries]);
 
-    // Pie Chart Data
+    // Pie Chart Data (Expenses by Category)
     const expenseData = React.useMemo(() => {
-        const paid = transactions
-            .filter(t => t.type === 'EXPENSE' && t.status === 'PAID')
-            .reduce((acc, curr) => acc + curr.amount, 0);
+        const categoryTotals = transactions
+            .filter(t => t.type === 'EXPENSE')
+            .reduce((acc, curr) => {
+                const cat = curr.category || 'OUTROS';
+                acc[cat] = (acc[cat] || 0) + curr.amount;
+                return acc;
+            }, {} as Record<string, number>);
 
-        const pending = transactions
-            .filter(t => t.type === 'EXPENSE' && t.status === 'PENDING')
-            .reduce((acc, curr) => acc + curr.amount, 0);
+        const categoryLabels: Record<string, string> = {
+            'FUEL': 'Combustível',
+            'MAINTENANCE': 'Manutenção',
+            'PARTS': 'Peças',
+            'SALARY': 'Salários',
+            'TAXES': 'Impostos',
+            'SERVICES': 'Serviços/Comissões', // Commissions fall here usually
+            'GENERAL': 'Geral'
+        };
 
-        return [
-            { name: 'Pagas', value: paid },
-            { name: 'A Pagar', value: pending }
-        ];
+        return Object.entries(categoryTotals)
+            .map(([key, value]) => ({
+                name: categoryLabels[key] || key,
+                value
+            }))
+            .sort((a, b) => b.value - a.value); // Sort descending
     }, [transactions]);
 
-    const COLORS = ['#10b981', '#ef4444']; // Emerald-500, Red-500
+    const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#64748b'];
 
     // Vehicle Profit Data
     const vehicleProfitData = React.useMemo(() => {
@@ -80,6 +93,30 @@ export const FinancialDashboard: React.FC = () => {
             };
         }).filter(v => v.Receita > 0 || v.Despesa > 0); // Only show active vehicles
     }, [vehicles, transactions]);
+
+    // Monthly Profit Trend (Last 6 Months)
+    const trendData = React.useMemo(() => {
+        const last6Months = Array.from({ length: 6 }, (_, i) => {
+            const d = new Date();
+            d.setMonth(d.getMonth() - i);
+            return d;
+        }).reverse();
+
+        return last6Months.map(date => {
+            const monthStr = date.toISOString().slice(0, 7); // YYYY-MM
+            const monthTxs = transactions.filter(t => t.dueDate.startsWith(monthStr));
+
+            const income = monthTxs.filter(t => t.type === 'INCOME').reduce((acc, t) => acc + t.amount, 0);
+            const expense = monthTxs.filter(t => t.type === 'EXPENSE').reduce((acc, t) => acc + t.amount, 0);
+
+            return {
+                name: date.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase(),
+                Receita: income,
+                Despesa: expense,
+                Lucro: income - expense
+            };
+        });
+    }, [transactions]);
 
     return (
         <div className="max-w-7xl mx-auto space-y-8 pb-20">
@@ -159,7 +196,7 @@ export const FinancialDashboard: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Pie Chart */}
                 <div className="bg-slate-800/60 backdrop-blur-md p-6 rounded-2xl border border-slate-700/50 shadow-lg lg:col-span-1">
-                    <h3 className="text-xl font-bold text-white mb-6">Despesas: Pagas vs A Pagar</h3>
+                    <h3 className="text-xl font-bold text-white mb-6">Despesas por Categoria</h3>
                     <div className="h-64 w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
@@ -173,13 +210,13 @@ export const FinancialDashboard: React.FC = () => {
                                     paddingAngle={5}
                                     dataKey="value"
                                 >
-                                    {expenseData.map((entry, index) => (
+                                    {expenseData.map((_, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
                                 <Tooltip
                                     contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#fff' }}
-                                    formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                                    formatter={(value: any) => `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                                 />
                                 <Legend />
                             </PieChart>
@@ -198,7 +235,7 @@ export const FinancialDashboard: React.FC = () => {
                                 <YAxis stroke="#94a3b8" />
                                 <RechartsTooltip
                                     contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#fff' }}
-                                    formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                                    formatter={(value: any) => `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                                 />
                                 <RechartsLegend />
                                 <Bar dataKey="Receita" fill="#3b82f6" radius={[4, 4, 0, 0]} />
@@ -206,6 +243,107 @@ export const FinancialDashboard: React.FC = () => {
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
+                </div>
+            </div>
+
+
+            {/* --- TRIP ANALYSIS SECTION --- */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-6">
+                {/* Melhores Viagens */}
+                <div className="bg-slate-800/60 backdrop-blur-md p-6 rounded-2xl border border-slate-700/50 shadow-lg">
+                    <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <TrendingUp className="text-blue-400" />
+                        Melhores Viagens (Lucro)
+                    </h3>
+                    <div className="space-y-3">
+                        {trips
+                            .filter(t => t.status === 'COMPLETED')
+                            .map(t => ({
+                                ...t,
+                                profit: t.freightAmount - (t.extraExpensesAmount + t.fuelAmount + t.commissionAmount)
+                            }))
+                            .sort((a, b) => b.profit - a.profit)
+                            .slice(0, 5)
+                            .map((t) => (
+                                <div key={t.id} className="flex justify-between items-center p-3 bg-slate-900/50 rounded-lg border border-slate-700/30">
+                                    <div>
+                                        <div className="text-sm font-bold text-slate-200">{t.startLocation} → {t.endLocation}</div>
+                                        <div className="text-xs text-gray-500">{new Date(t.endDate!).toLocaleDateString()}</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-sm font-bold text-blue-400">
+                                            {t.profit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </div>
+                                        <div className="text-xs text-green-500 flex items-center justify-end gap-1">
+                                            <DollarSign size={10} /> {t.freightAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        }
+                        {trips.filter(t => t.status === 'COMPLETED').length === 0 && (
+                            <p className="text-gray-500 text-sm text-center py-4">Nenhuma viagem finalizada.</p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Viagens com Menor Margem */}
+                <div className="bg-slate-800/60 backdrop-blur-md p-6 rounded-2xl border border-slate-700/50 shadow-lg">
+                    <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <AlertCircle className="text-orange-400" />
+                        Menores Margens / Prejuízo
+                    </h3>
+                    <div className="space-y-3">
+                        {trips
+                            .filter(t => t.status === 'COMPLETED')
+                            .map(t => ({
+                                ...t,
+                                profit: t.freightAmount - (t.extraExpensesAmount + t.fuelAmount + t.commissionAmount)
+                            }))
+                            .sort((a, b) => a.profit - b.profit)
+                            .slice(0, 5)
+                            .map((t) => (
+                                <div key={t.id} className="flex justify-between items-center p-3 bg-slate-900/50 rounded-lg border border-slate-700/30">
+                                    <div>
+                                        <div className="text-sm font-bold text-slate-200">{t.startLocation} → {t.endLocation}</div>
+                                        <div className="text-xs text-gray-500">{new Date(t.endDate!).toLocaleDateString()}</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className={clsx("text-sm font-bold", t.profit >= 0 ? "text-slate-400" : "text-red-400")}>
+                                            {t.profit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </div>
+                                        <div className="text-xs text-red-400 flex items-center justify-end gap-1">
+                                            Gastos: {((t.extraExpensesAmount + t.fuelAmount + t.commissionAmount)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        }
+                        {trips.filter(t => t.status === 'COMPLETED').length === 0 && (
+                            <p className="text-gray-500 text-sm text-center py-4">Nenhuma viagem finalizada.</p>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Monthly Trend Chart */}
+            <div className="bg-slate-800/60 backdrop-blur-md p-6 rounded-2xl border border-slate-700/50 shadow-lg">
+                <h3 className="text-xl font-bold text-white mb-6">Tendência de Lucro (Últimos 6 Meses)</h3>
+                <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={trendData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                            <XAxis dataKey="name" stroke="#94a3b8" />
+                            <YAxis stroke="#94a3b8" />
+                            <RechartsTooltip
+                                contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#fff' }}
+                                formatter={(value: any) => `R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                            />
+                            <RechartsLegend />
+                            <Bar dataKey="Receita" fill="#10b981" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="Despesa" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
                 </div>
             </div>
 
@@ -218,6 +356,14 @@ export const FinancialDashboard: React.FC = () => {
                     </div>
                     <h3 className="text-xl font-bold text-white mt-4">Lançamentos</h3>
                     <p className="text-gray-400 text-sm mt-1">Gerenciar fluxo</p>
+                </Link>
+
+                <Link to="/financial/driver-statement" className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 hover:bg-slate-800/80 transition-all group">
+                    <div className="p-4 bg-yellow-500/10 rounded-xl w-fit group-hover:bg-yellow-500/20 transition-colors">
+                        <Users className="text-yellow-400" size={32} />
+                    </div>
+                    <h3 className="text-xl font-bold text-white mt-4">Extrato</h3>
+                    <p className="text-gray-400 text-sm mt-1">Comissões Motorista</p>
                 </Link>
 
                 <Link to="/financial/fuel" className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 hover:bg-slate-800/80 transition-all group">
@@ -251,7 +397,15 @@ export const FinancialDashboard: React.FC = () => {
                     <h3 className="text-xl font-bold text-white mt-4">Clientes</h3>
                     <p className="text-gray-400 text-sm mt-1">Cadastro de tomadores</p>
                 </Link>
+
+                <Link to="/financial/reports" className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 hover:bg-slate-800/80 transition-all group">
+                    <div className="p-4 bg-teal-500/10 rounded-xl w-fit group-hover:bg-teal-500/20 transition-colors">
+                        <Calculator className="text-teal-400" size={32} />
+                    </div>
+                    <h3 className="text-xl font-bold text-white mt-4">Relatórios</h3>
+                    <p className="text-gray-400 text-sm mt-1">DRE e Fechamento</p>
+                </Link>
             </div>
-        </div>
+        </div >
     );
 };

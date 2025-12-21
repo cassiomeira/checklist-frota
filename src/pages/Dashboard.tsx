@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFleet } from '../store/FleetContext';
 import { AlertTriangle, CheckCircle, Clock, TrendingUp, AlertOctagon, Wrench, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
-import type { Truck, Checklist } from '../types';
+import type { Truck, Checklist, MaintenanceTask } from '../types';
 import { ChecklistDetails } from '../components/ChecklistDetails';
-import { MaintenanceRegistration } from '../components/MaintenanceRegistration';
+import { VehicleDetailsModal } from '../components/VehicleDetailsModal';
+import { supabase } from '../lib/supabase';
 
 const KPICard: React.FC<{ title: string; value: number; icon: React.ReactNode; colorClass: string }> = ({ title, value, icon, colorClass }) => (
     <div className="bg-slate-800/40 backdrop-blur-md p-6 rounded-2xl border border-slate-700/50 shadow-lg hover:shadow-xl hover:bg-slate-800/60 transition-all duration-300 group">
@@ -21,9 +23,41 @@ const KPICard: React.FC<{ title: string; value: number; icon: React.ReactNode; c
 );
 
 export const Dashboard: React.FC = () => {
+    const navigate = useNavigate();
     const { vehicles, checklists, drivers, getCorrectiveActionsByChecklist } = useFleet();
     const [selectedChecklist, setSelectedChecklist] = useState<Checklist | null>(null);
+
+    // Modal State
     const [selectedMaintenanceVehicle, setSelectedMaintenanceVehicle] = useState<Truck | null>(null);
+    const [modalInitialTab, setModalInitialTab] = useState<'DETAILS' | 'ALERTS'>('DETAILS');
+
+    // Tasks State
+    const [pendingTasks, setPendingTasks] = useState<MaintenanceTask[]>([]);
+
+    useEffect(() => {
+        fetchPendingTasks();
+    }, []);
+
+    const fetchPendingTasks = async () => {
+        const { data, error } = await supabase
+            .from('maintenance_alerts')
+            .select('*')
+            .eq('status', 'PENDING');
+        if (data) {
+            console.log('Pending Tasks (Raw):', data);
+            // Map snake_case to camelCase
+            const mappedTasks = data.map((task: any) => ({
+                ...task,
+                vehicleId: task.vehicle_id,
+                transactionId: task.transaction_id,
+                dueDate: task.due_date,
+                createdAt: task.created_at,
+                createdBy: task.created_by
+            }));
+            setPendingTasks(mappedTasks as MaintenanceTask[]);
+        }
+        if (error) console.error('Error fetching tasks:', error);
+    };
 
     const trucks = vehicles.filter(v => v.type === 'CAVALO') as Truck[];
 
@@ -53,18 +87,44 @@ export const Dashboard: React.FC = () => {
         return 'PROBLEM';
     };
 
-    // Logic
-    const alerts = trucks.map(truck => {
+    // Logic for Oil Alerts
+    const oilAlerts = trucks.map(truck => {
         const diff = truck.nextOilChangeKm - truck.currentKm;
         let status: 'OK' | 'ATTENTION' | 'URGENT' = 'OK';
         if (diff <= 0) status = 'URGENT';
         else if (diff < 5000) status = 'ATTENTION';
-        return { truck, diff, status };
+        return { type: 'OIL', truck, diff, status, title: `Troca de Óleo: ${diff < 0 ? 'Excedido' : 'Resta'} ${Math.abs(diff)} km` };
     }).filter(a => a.status !== 'OK');
 
-    const urgentCount = alerts.filter(a => a.status === 'URGENT').length;
-    const attentionCount = alerts.filter(a => a.status === 'ATTENTION').length;
-    const okCount = trucks.length - urgentCount - attentionCount;
+    // Logic for Manual Task Alerts
+    const taskAlerts = pendingTasks.map(task => {
+        const truck = vehicles.find(v => v.id === task.vehicleId) as Truck;
+        if (!truck) return null;
+
+        return {
+            type: 'TASK',
+            truck,
+            task,
+            status: task.priority === 'HIGH' ? 'URGENT' : 'ATTENTION',
+            title: task.description
+        };
+    }).filter(Boolean); // remove nulls
+
+    // Combine Alerts
+    const allAlerts = [...oilAlerts, ...taskAlerts].sort((a: any, b: any) => {
+        if (a.status === 'URGENT' && b.status !== 'URGENT') return -1;
+        if (a.status !== 'URGENT' && b.status === 'URGENT') return 1;
+        return 0;
+    });
+
+    const urgentCount = allAlerts.filter((a: any) => a.status === 'URGENT').length;
+    const attentionCount = allAlerts.filter((a: any) => a.status === 'ATTENTION').length;
+
+    // Let's keep okCount strictly about Oil for KPI consistency or update it? User focused on alerts dashboard.
+    // Let's assume KPI "Operação Normal" refers to Vehicles without *Any* issues.
+    const vehiclesWithIssues = new Set(allAlerts.map((a: any) => a.truck.id));
+    const okVehiclesCount = vehicles.length - vehiclesWithIssues.size;
+
 
     return (
         <div className="space-y-10">
@@ -88,18 +148,18 @@ export const Dashboard: React.FC = () => {
                 />
                 <KPICard
                     title="Operação Normal"
-                    value={okCount + vehicles.filter(v => v.type === 'CARRETA').length}
+                    value={okVehiclesCount}
                     icon={<CheckCircle size={24} />}
                     colorClass="bg-emerald-500/10 text-emerald-400"
                 />
                 <KPICard
-                    title="Próximos da Troca"
+                    title="Alertas (Atenção)"
                     value={attentionCount}
                     icon={<Clock size={24} />}
                     colorClass="bg-amber-500/10 text-amber-400"
                 />
                 <KPICard
-                    title="Manutenção Urgente"
+                    title="Alertas (Urgente)"
                     value={urgentCount}
                     icon={<AlertOctagon size={24} />}
                     colorClass="bg-red-500/10 text-red-400"
@@ -116,17 +176,20 @@ export const Dashboard: React.FC = () => {
                         Alertas de Manutenção
                     </h3>
 
-                    {alerts.length === 0 ? (
+                    {allAlerts.length === 0 ? (
                         <div className="bg-slate-800/30 backdrop-blur-sm p-8 rounded-2xl border border-dashed border-slate-700 text-center text-gray-500 h-full flex flex-col justify-center items-center">
                             <CheckCircle className="mb-2 text-emerald-500/50" size={40} />
-                            <p>Veículos ok</p>
+                            <p>Nenhum alerta pendente</p>
                         </div>
                     ) : (
-                        <div className="grid gap-4">
-                            {alerts.map((alert) => (
+                        <div className="grid gap-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                            {allAlerts.map((alert: any, idx) => (
                                 <div
-                                    key={alert.truck.id}
-                                    onClick={() => setSelectedMaintenanceVehicle(alert.truck)}
+                                    key={idx}
+                                    onClick={() => {
+                                        setSelectedMaintenanceVehicle(alert.truck);
+                                        setModalInitialTab(alert.type === 'TASK' ? 'ALERTS' : 'DETAILS');
+                                    }}
                                     className={clsx(
                                         "group p-4 rounded-xl border-l-4 flex justify-between items-center transition-all cursor-pointer hover:bg-white/5",
                                         alert.status === 'URGENT'
@@ -135,9 +198,14 @@ export const Dashboard: React.FC = () => {
                                     )}
                                 >
                                     <div>
-                                        <p className="font-bold text-white">{alert.truck.plate}</p>
-                                        <p className="text-xs text-gray-400">
-                                            {alert.diff < 0 ? `Excedido: ${Math.abs(alert.diff)} km` : `Resta: ${alert.diff} km`}
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <p className="font-bold text-white">{alert.truck.plate}</p>
+                                            <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-gray-400 border border-slate-700">
+                                                {alert.type === 'OIL' ? 'ÓLEO' : 'TAREFA'}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-gray-300 font-medium">
+                                            {alert.title}
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-3">
@@ -282,10 +350,12 @@ export const Dashboard: React.FC = () => {
             )}
 
             {selectedMaintenanceVehicle && (
-                <MaintenanceRegistration
+                <VehicleDetailsModal
                     vehicle={selectedMaintenanceVehicle}
-                    maintenanceType="oil"
                     onClose={() => setSelectedMaintenanceVehicle(null)}
+                    onEdit={() => navigate('/vehicles')}
+                    initialTab={modalInitialTab}
+                    onUpdate={fetchPendingTasks}
                 />
             )}
         </div>

@@ -1,7 +1,23 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Truck, ClipboardCheck, User, Settings, Wallet } from 'lucide-react';
+
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+    LayoutDashboard, Truck, Users, ClipboardCheck,
+    Wallet, Map as MapIcon, FileText, Settings, LogOut, Save
+} from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import clsx from 'clsx';
+
+const MAIN_MENU_ITEMS = [
+    { icon: LayoutDashboard, label: 'Painel de Controle', path: '/' },
+    { icon: Truck, label: 'Frota', path: '/vehicles' },
+    { icon: Users, label: 'Motoristas', path: '/drivers' },
+    { icon: ClipboardCheck, label: 'Checklist Diário', path: '/checklist' },
+    { icon: Wallet, label: 'Financeiro', path: '/financial' },
+    { icon: MapIcon, label: 'Viagens', path: '/financial/trips' },
+    { icon: FileText, label: 'Extrato Motorista', path: '/financial/driver-statement' },
+    { icon: FileText, label: 'Relatórios (DRE)', path: '/financial/reports' },
+];
 
 const NavItem: React.FC<{ to: string; icon: React.ReactNode; label: string }> = ({ to, icon, label }) => {
     const location = useLocation();
@@ -24,6 +40,22 @@ const NavItem: React.FC<{ to: string; icon: React.ReactNode; label: string }> = 
 };
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const navigate = useNavigate();
+    const [userEmail, setUserEmail] = useState<string>('Carregando...');
+
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            if (user?.email) {
+                setUserEmail(user.email);
+            }
+        });
+    }, []);
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        navigate('/login');
+    };
+
     return (
         <div className="flex h-screen bg-transparent text-industrial-text overflow-hidden">
             {/* Sidebar */}
@@ -42,29 +74,37 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     </div>
                 </div>
 
-                <nav className="flex-1 p-6 space-y-2">
+                <nav className="flex-1 p-6 space-y-2 overflow-y-auto custom-scrollbar">
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 px-4">Menu Principal</p>
-                    <NavItem to="/" icon={<LayoutDashboard size={20} />} label="Painel de Controle" />
-                    <NavItem to="/vehicles" icon={<Truck size={20} />} label="Frota" />
-                    <NavItem to="/drivers" icon={<User size={20} />} label="Motoristas" />
-                    <NavItem to="/checklist" icon={<ClipboardCheck size={20} />} label="Checklist Diário" />
-                    <NavItem to="/financial" icon={<Wallet size={20} />} label="Financeiro" />
+                    {MAIN_MENU_ITEMS.map((item) => (
+                        <NavItem key={item.path} to={item.path} icon={<item.icon size={20} />} label={item.label} />
+                    ))}
 
                     <div className="pt-4 mt-4 border-t border-slate-700/50">
                         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 px-4">Configurações</p>
                         <NavItem to="/settings" icon={<Settings size={20} />} label="Itens do Checklist" />
+                        <NavItem to="/backup" icon={<Save size={20} />} label="Backup e Restauração" />
                     </div>
                 </nav>
 
-                <div className="p-6 border-t border-slate-700/50 bg-slate-900/30">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-industrial-accent to-yellow-200 flex items-center justify-center text-slate-900 font-bold">
-                            AD
+                <div className="p-4 border-t border-slate-700/50 bg-slate-900/30">
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="w-9 h-9 min-w-9 rounded-full bg-gradient-to-tr from-industrial-accent to-yellow-200 flex items-center justify-center text-slate-900 font-bold shadow-lg shadow-industrial-accent/10">
+                                {userEmail.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div className="truncate">
+                                <p className="text-sm font-bold text-white truncate max-w-[140px]">{userEmail.split('@')[0]}</p>
+                                <p className="text-[10px] text-gray-400 truncate max-w-[140px]">{userEmail}</p>
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-sm font-bold text-white">Admin User</p>
-                            <p className="text-xs text-gray-400">admin@scania.com</p>
-                        </div>
+                        <button
+                            onClick={handleLogout}
+                            className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                            title="Sair do Sistema"
+                        >
+                            <LogOut size={18} />
+                        </button>
                     </div>
                 </div>
             </aside>

@@ -120,9 +120,33 @@ export interface Transaction {
     vehicleId?: string;
     supplierId?: string;
     customerId?: string;
+    driverId?: string;
+    tripId?: string;
     checklistId?: string;
+    commissionValue?: number;
     createdBy?: string;
     notes?: string;
+}
+
+export interface Trip {
+    id: string;
+    vehicleId: string;
+    driverId?: string;
+    startLocation: string;
+    endLocation?: string;
+    startKm: number;
+    endKm?: number;
+    startDate: string; // ISO date string
+    endDate?: string;
+    freightAmount: number;
+    extraExpensesAmount: number;
+    fuelAmount: number;
+    fuelLitres?: number;
+    fuelPrice?: number;
+    commissionAmount: number;
+    status: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED';
+    notes?: string;
+    createdBy?: string;
 }
 
 export interface FuelEntry {
@@ -139,4 +163,16 @@ export interface FuelEntry {
     fullTank: boolean;
     accountId?: string;
     paymentMethod?: string;
+}
+
+export interface MaintenanceTask {
+    id: string;
+    vehicleId: string;
+    description: string;
+    priority: 'LOW' | 'MEDIUM' | 'HIGH';
+    status: 'PENDING' | 'DONE';
+    dueDate?: string;
+    cost?: number;
+    transactionId?: string;
+    createdAt: string;
 }

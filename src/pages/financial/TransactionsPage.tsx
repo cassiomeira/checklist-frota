@@ -1,16 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import { useFinancial } from '../../store/FinancialContext';
-import { Plus, Filter, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
+import { useFleet } from '../../store/FleetContext';
+import { Plus, Filter, CheckCircle2, AlertCircle, Trash2, Search } from 'lucide-react';
 import clsx from 'clsx';
 import type { Transaction } from '../../types';
 
 export const TransactionsPage: React.FC = () => {
-    const { transactions, accounts, suppliers, customers, addTransaction, updateTransaction, deleteTransaction } = useFinancial();
+    const { transactions, accounts, suppliers, customers, drivers, addTransaction, addTransactions, updateTransaction, deleteTransaction, deleteTransactions } = useFinancial();
+    const { vehicles } = useFleet();
 
     // Filters
     const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
     const [typeFilter, setTypeFilter] = useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL');
     const [statusFilter] = useState<'ALL' | 'PENDING' | 'PAID'>('ALL');
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
     // Form / Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,15 +30,33 @@ export const TransactionsPage: React.FC = () => {
     const [accountId, setAccountId] = useState('');
     const [supplierId, setSupplierId] = useState('');
     const [customerId, setCustomerId] = useState('');
+    const [driverId, setDriverId] = useState('');
+    const [vehicleId, setVehicleId] = useState('');
+    const [payeeType, setPayeeType] = useState<'SUPPLIER' | 'DRIVER'>('SUPPLIER');
+
+    // Recurrence State
+    const [isRecurrent, setIsRecurrent] = useState(false);
+    const [installments, setInstallments] = useState('2');
+
+    // Commission State
+    const [generateCommission, setGenerateCommission] = useState(false);
+
+    // Search
+    const [searchTerm, setSearchTerm] = useState('');
 
     const filteredTransactions = useMemo(() => {
         return transactions.filter(t => {
+            // Global Search Override
+            if (searchTerm) {
+                return t.description.toLowerCase().includes(searchTerm.toLowerCase());
+            }
+
             if (!t.dueDate.startsWith(monthFilter)) return false;
             if (typeFilter !== 'ALL' && t.type !== typeFilter) return false;
             if (statusFilter !== 'ALL' && t.status !== statusFilter) return false;
             return true;
         });
-    }, [transactions, monthFilter, typeFilter, statusFilter]);
+    }, [transactions, monthFilter, typeFilter, statusFilter, searchTerm]);
 
     const totals = useMemo(() => {
         return filteredTransactions.reduce((acc, t) => {
@@ -59,6 +80,9 @@ export const TransactionsPage: React.FC = () => {
             setAccountId(tx.accountId || '');
             setSupplierId(tx.supplierId || '');
             setCustomerId(tx.customerId || '');
+            setDriverId(tx.driverId || '');
+            setVehicleId(tx.vehicleId || '');
+            setPayeeType(tx.driverId ? 'DRIVER' : 'SUPPLIER');
         } else {
             setEditingTx(null);
             setDescription('');
@@ -71,6 +95,9 @@ export const TransactionsPage: React.FC = () => {
             setAccountId('');
             setSupplierId('');
             setCustomerId('');
+            setDriverId('');
+            setVehicleId('');
+            setPayeeType('SUPPLIER');
         }
         setIsModalOpen(true);
     };
@@ -79,6 +106,7 @@ export const TransactionsPage: React.FC = () => {
         e.preventDefault();
         try {
             const valAmount = parseFloat(amount.replace(',', '.'));
+            const commissionVal = (type === 'INCOME' && generateCommission) ? (valAmount * 0.10) : 0;
 
             const payload = {
                 description,
@@ -89,14 +117,77 @@ export const TransactionsPage: React.FC = () => {
                 paymentDate: paymentDate ? paymentDate : (status === 'PAID' ? dueDate : undefined),
                 category,
                 accountId: accountId || undefined,
-                supplierId: supplierId || undefined,
-                customerId: customerId || undefined
+                supplierId: (type === 'EXPENSE' && payeeType === 'SUPPLIER') ? (supplierId || undefined) : undefined,
+                customerId: type === 'INCOME' ? (customerId || undefined) : undefined,
+                driverId: (type === 'EXPENSE' && payeeType === 'DRIVER') ? (driverId || undefined) : (type === 'INCOME' && generateCommission ? driverId : undefined),
+                vehicleId: vehicleId || undefined,
+                commissionValue: commissionVal
             };
 
             if (editingTx) {
                 await updateTransaction(editingTx.id, payload);
             } else {
-                await addTransaction(payload);
+                if (type === 'INCOME' && generateCommission) {
+                    // Create TWO transactions: Income + Commission Expense
+                    const incomeTx = {
+                        ...payload,
+                        commissionValue: 0 // Don't double track on the income itself effectively
+                    };
+
+                    const commissionTx = {
+                        description: `Comissão - ${description}`,
+                        amount: parseFloat((valAmount * 0.10).toFixed(2)),
+                        type: 'EXPENSE' as 'EXPENSE',
+                        status: 'PENDING' as 'PENDING',
+                        dueDate: dueDate, // Due same day as income? Or user preference? defaulting to same day
+                        paymentDate: undefined,
+                        category: 'SERVICES', // Default category for commissions
+                        accountId: undefined, // No account yet strictly, or keep undefined
+                        supplierId: undefined,
+                        customerId: undefined,
+                        driverId: driverId, // The driver gets the commission
+                        payeeType: 'DRIVER' // Helper for UI but not DB field strictly in all ver, but good for context
+                    };
+
+                    // We need to shape commissionTx correctly for addTransactions
+                    // Our payload builder above handles some mappings, let's construct explicit objects
+
+                    await addTransactions([
+                        incomeTx,
+                        {
+                            description: `Comissão - ${description}`,
+                            amount: parseFloat((valAmount * 0.10).toFixed(2)),
+                            type: 'EXPENSE',
+                            status: 'PENDING',
+                            dueDate: dueDate,
+                            category: 'SERVICES',
+                            driverId: driverId,
+                            paymentDate: undefined
+                        }
+                    ]);
+
+                } else if (type === 'EXPENSE' && isRecurrent) {
+                    const count = parseInt(installments);
+                    const batch = [];
+                    const baseDate = new Date(dueDate);
+
+                    for (let i = 0; i < count; i++) {
+                        const newDate = new Date(baseDate);
+                        newDate.setMonth(baseDate.getMonth() + i);
+                        // Handle generic month overflow logic if needed, but Date setMonth handles rollover
+
+                        batch.push({
+                            ...payload,
+                            description: `${description} (${i + 1}/${count})`,
+                            dueDate: newDate.toISOString().split('T')[0],
+                            status: 'PENDING' as 'PENDING', // Force pending for future installments
+                            paymentDate: undefined // Clear payment date for future
+                        });
+                    }
+                    await addTransactions(batch);
+                } else {
+                    await addTransaction(payload);
+                }
             }
             setIsModalOpen(false);
         } catch (error) {
@@ -114,6 +205,37 @@ export const TransactionsPage: React.FC = () => {
         }
     };
 
+    const balanceStats = useMemo(() => {
+        const startOfMonth = new Date(monthFilter + '-01');
+        const nextMonth = new Date(startOfMonth);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+        // 1. Total Initial Balance (from wallets/banks setup)
+        const totalInitial = accounts.reduce((acc, a) => acc + a.initialBalance, 0);
+
+        // 2. Accumulated Past Flow (PAID transactions before this month)
+        // We use paymentDate for cash flow accuracy
+        const pastFlow = transactions.reduce((acc, t) => {
+            if (t.status === 'PAID' && t.paymentDate) {
+                const pDate = new Date(t.paymentDate);
+                if (pDate < startOfMonth) {
+                    return acc + (t.type === 'INCOME' ? t.amount : -t.amount);
+                }
+            }
+            return acc;
+        }, 0);
+
+        const openingBalance = totalInitial + pastFlow;
+
+        // 3. Current Month Flow (Projected: Includes Pending + Paid based on Due Date filtering)
+        // Note: totals.income and totals.expense already come from filteredTransactions (by Due Date)
+        const currentMonthNet = totals.income - totals.expense;
+
+        const closingBalance = openingBalance + currentMonthNet;
+
+        return { openingBalance, closingBalance, currentMonthNet };
+    }, [accounts, transactions, monthFilter, totals]);
+
     return (
         <div className="max-w-7xl mx-auto pb-20">
             {/* Header & Stats */}
@@ -122,13 +244,39 @@ export const TransactionsPage: React.FC = () => {
                     <h2 className="text-4xl font-black text-white tracking-tight leading-none mb-2">Lançamentos</h2>
                     <p className="text-gray-400 text-lg">Contas a pagar e receber</p>
                 </div>
-                <div className="flex gap-4">
-                    <input
-                        type="month"
-                        value={monthFilter}
-                        onChange={e => setMonthFilter(e.target.value)}
-                        className="bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-industrial-accent"
-                    />
+                <div className="flex gap-4 items-center">
+                    {selectedIds.length > 0 && (
+                        <button
+                            onClick={async () => {
+                                if (confirm(`Deseja excluir ${selectedIds.length} lançamentos selecionados?`)) {
+                                    await deleteTransactions(selectedIds);
+                                    setSelectedIds([]);
+                                }
+                            }}
+                            className="bg-red-500/10 text-red-500 border border-red-500/50 px-4 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-red-500/20 transition-all animate-fade-in"
+                        >
+                            <Trash2 size={20} />
+                            Excluir Selecionados ({selectedIds.length})
+                        </button>
+                    )}
+                    <div className="relative group">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-industrial-accent transition-colors" size={20} />
+                        <input
+                            type="text"
+                            placeholder="Buscar..."
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            className="bg-slate-800 border border-slate-700 text-white rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-industrial-accent w-40 focus:w-64 transition-all"
+                        />
+                    </div>
+                    {!searchTerm && (
+                        <input
+                            type="month"
+                            value={monthFilter}
+                            onChange={e => setMonthFilter(e.target.value)}
+                            className="bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-industrial-accent"
+                        />
+                    )}
                     <button
                         onClick={() => handleOpenModal()}
                         className="bg-industrial-accent text-slate-900 px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-yellow-400 transition-all shadow-lg"
@@ -139,20 +287,44 @@ export const TransactionsPage: React.FC = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {/* Financial Overview Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                {/* 1. Opening Balance */}
                 <div className="bg-slate-800/60 p-6 rounded-2xl border border-slate-700/50">
-                    <p className="text-gray-400 text-sm font-bold uppercase mb-1">Total Receitas</p>
-                    <p className="text-2xl font-mono font-bold text-emerald-400">R$ {totals.income.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                </div>
-                <div className="bg-slate-800/60 p-6 rounded-2xl border border-slate-700/50">
-                    <p className="text-gray-400 text-sm font-bold uppercase mb-1">Total Despesas</p>
-                    <p className="text-2xl font-mono font-bold text-red-400">R$ {totals.expense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                </div>
-                <div className="bg-slate-800/60 p-6 rounded-2xl border border-slate-700/50">
-                    <p className="text-gray-400 text-sm font-bold uppercase mb-1">Resultado (Mês)</p>
-                    <p className={clsx("text-2xl font-mono font-bold", (totals.income - totals.expense) >= 0 ? "text-emerald-400" : "text-red-400")}>
-                        R$ {(totals.income - totals.expense).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    <p className="text-gray-400 text-xs font-bold uppercase mb-1">Saldo Anterior</p>
+                    <p className={clsx("text-2xl font-mono font-bold", balanceStats.openingBalance >= 0 ? "text-blue-400" : "text-red-400")}>
+                        R$ {balanceStats.openingBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
+                    <p className="text-[10px] text-gray-500 mt-1">Acumulado até dia 01</p>
+                </div>
+
+                {/* 2. Month Income */}
+                <div className="bg-slate-800/60 p-6 rounded-2xl border border-slate-700/50">
+                    <p className="text-gray-400 text-xs font-bold uppercase mb-1">Entradas (Mês)</p>
+                    <p className="text-2xl font-mono font-bold text-emerald-400">
+                        + R$ {totals.income.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                </div>
+
+                {/* 3. Month Expense */}
+                <div className="bg-slate-800/60 p-6 rounded-2xl border border-slate-700/50">
+                    <p className="text-gray-400 text-xs font-bold uppercase mb-1">Saídas (Mês)</p>
+                    <p className="text-2xl font-mono font-bold text-red-400">
+                        - R$ {totals.expense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                </div>
+
+                {/* 4. Projected Closing Balance */}
+                <div className={clsx("p-6 rounded-2xl border transition-all",
+                    balanceStats.closingBalance >= 0
+                        ? "bg-emerald-950/20 border-emerald-500/30"
+                        : "bg-red-950/20 border-red-500/30"
+                )}>
+                    <p className="text-gray-400 text-xs font-bold uppercase mb-1">Saldo Final (Previsto)</p>
+                    <p className={clsx("text-2xl font-mono font-bold", balanceStats.closingBalance >= 0 ? "text-emerald-400" : "text-red-400")}>
+                        R$ {balanceStats.closingBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-[10px] text-gray-500 mt-1">Saldo Anterior + Resultado do Mês</p>
                 </div>
             </div>
 
@@ -178,6 +350,20 @@ export const TransactionsPage: React.FC = () => {
                     <table className="w-full text-left">
                         <thead className="bg-slate-900/50 text-gray-400 text-xs uppercase font-bold">
                             <tr>
+                                <th className="p-4 w-10">
+                                    <input
+                                        type="checkbox"
+                                        className="w-4 h-4 rounded accent-industrial-accent"
+                                        checked={filteredTransactions.length > 0 && selectedIds.length === filteredTransactions.length}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setSelectedIds(filteredTransactions.map(t => t.id));
+                                            } else {
+                                                setSelectedIds([]);
+                                            }
+                                        }}
+                                    />
+                                </th>
                                 <th className="p-4">Vencimento</th>
                                 <th className="p-4">Pagamento</th>
                                 <th className="p-4">Descrição</th>
@@ -189,7 +375,21 @@ export const TransactionsPage: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-slate-700/50">
                             {filteredTransactions.map(tx => (
-                                <tr key={tx.id} className="hover:bg-slate-800/50 transition-colors group">
+                                <tr key={tx.id} className={clsx("hover:bg-slate-800/50 transition-colors group", selectedIds.includes(tx.id) && "bg-slate-800/80")}>
+                                    <td className="p-4">
+                                        <input
+                                            type="checkbox"
+                                            className="w-4 h-4 rounded accent-industrial-accent"
+                                            checked={selectedIds.includes(tx.id)}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setSelectedIds(prev => [...prev, tx.id]);
+                                                } else {
+                                                    setSelectedIds(prev => prev.filter(id => id !== tx.id));
+                                                }
+                                            }}
+                                        />
+                                    </td>
                                     <td className="p-4 font-mono text-sm text-gray-300">
                                         {new Date(tx.dueDate).toLocaleDateString('pt-BR')}
                                     </td>
@@ -200,7 +400,8 @@ export const TransactionsPage: React.FC = () => {
                                         <div className="font-bold text-white">{tx.description}</div>
                                         <div className="text-xs text-gray-500">
                                             {tx.supplierId ? suppliers.find(s => s.id === tx.supplierId)?.tradeName :
-                                                tx.customerId ? customers.find(c => c.id === tx.customerId)?.tradeName : '-'}
+                                                tx.driverId ? `Motorista: ${drivers.find(d => d.id === tx.driverId)?.name}` :
+                                                    tx.customerId ? customers.find(c => c.id === tx.customerId)?.tradeName : '-'}
                                         </div>
                                     </td>
                                     <td className="p-4">
@@ -293,6 +494,74 @@ export const TransactionsPage: React.FC = () => {
                                 </div>
                             </div>
 
+                            {/* Commission Toggle for Income */}
+                            {!editingTx && type === 'INCOME' && (
+                                <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700/50 mb-6">
+                                    <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={generateCommission}
+                                            onChange={e => setGenerateCommission(e.target.checked)}
+                                            className="w-4 h-4 accent-industrial-accent rounded"
+                                        />
+                                        <span className="text-white font-bold text-sm">Gerar Comissão (10%)?</span>
+                                    </label>
+                                    {generateCommission && (
+                                        <div className="animate-fade-in">
+                                            <p className="text-xs text-emerald-400 ml-6 mb-2">
+                                                Será creditado R$ {(parseFloat(amount || '0') * 0.10).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} para o motorista selecionado.
+                                            </p>
+                                            {/* Driver Selection for Income Commission */}
+                                            <div className="ml-6">
+                                                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Selecione o Motorista *</label>
+                                                <select required value={driverId} onChange={e => setDriverId(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
+                                                    <option value="">Selecione...</option>
+                                                    {drivers.map(d => (
+                                                        <option key={d.id} value={d.id}>{d.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {!editingTx && type === 'EXPENSE' && (
+                                <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700/50">
+                                    <label className="flex items-center gap-2 cursor-pointer mb-4">
+                                        <input
+                                            type="checkbox"
+                                            checked={isRecurrent}
+                                            onChange={e => setIsRecurrent(e.target.checked)}
+                                            className="w-4 h-4 accent-industrial-accent rounded"
+                                        />
+                                        <span className="text-white font-bold text-sm">Parcelar / Recorrência?</span>
+                                    </label>
+
+                                    {isRecurrent && (
+                                        <div className="grid grid-cols-2 gap-4 animate-fade-in">
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Nº Parcelas</label>
+                                                <input
+                                                    type="number"
+                                                    min="2"
+                                                    max="60"
+                                                    value={installments}
+                                                    onChange={e => setInstallments(e.target.value)}
+                                                    className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Intervalo</label>
+                                                <select className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none" disabled>
+                                                    <option>Mensal</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Data de Vencimento *</label>
@@ -322,18 +591,45 @@ export const TransactionsPage: React.FC = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">
-                                        {type === 'EXPENSE' ? 'Fornecedor' : 'Cliente'}
+                                        {type === 'EXPENSE' ? (
+                                            <div className="flex gap-4">
+                                                <label className="cursor-pointer flex items-center gap-1">
+                                                    <input type="radio" checked={payeeType === 'SUPPLIER'} onChange={() => setPayeeType('SUPPLIER')} className="accent-industrial-accent" />
+                                                    Fornecedor
+                                                </label>
+                                                <label className="cursor-pointer flex items-center gap-1">
+                                                    <input type="radio" checked={payeeType === 'DRIVER'} onChange={() => setPayeeType('DRIVER')} className="accent-industrial-accent" />
+                                                    Motorista
+                                                </label>
+                                            </div>
+                                        ) : 'Cliente'}
                                     </label>
-                                    <select
-                                        value={type === 'EXPENSE' ? supplierId : customerId}
-                                        onChange={e => type === 'EXPENSE' ? setSupplierId(e.target.value) : setCustomerId(e.target.value)}
-                                        className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none"
-                                    >
-                                        <option value="">Selecione...</option>
-                                        {type === 'EXPENSE'
-                                            ? suppliers.map(s => <option key={s.id} value={s.id}>{s.tradeName}</option>)
-                                            : customers.map(c => <option key={c.id} value={c.id}>{c.tradeName}</option>)
-                                        }
+                                    {type === 'EXPENSE' ? (
+                                        payeeType === 'SUPPLIER' ? (
+                                            <select value={supplierId} onChange={e => setSupplierId(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
+                                                <option value="">Selecione o Fornecedor...</option>
+                                                {suppliers.map(s => <option key={s.id} value={s.id}>{s.tradeName}</option>)}
+                                            </select>
+                                        ) : (
+                                            <select value={driverId} onChange={e => setDriverId(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
+                                                <option value="">Selecione o Motorista...</option>
+                                                {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                            </select>
+                                        )
+                                    ) : (
+                                        <select value={customerId} onChange={e => setCustomerId(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
+                                            <option value="">Selecione o Cliente...</option>
+                                            {customers.map(c => <option key={c.id} value={c.id}>{c.tradeName}</option>)}
+                                        </select>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Veículo (Opcional)</label>
+                                    <select value={vehicleId} onChange={e => setVehicleId(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
+                                        <option value="">Sem veículo vinculado</option>
+                                        {vehicles.map(v => (
+                                            <option key={v.id} value={v.id}>{v.plate} - {v.type === 'CAVALO' ? (v as any).model : 'Carreta'}</option>
+                                        ))}
                                     </select>
                                 </div>
                                 <div>

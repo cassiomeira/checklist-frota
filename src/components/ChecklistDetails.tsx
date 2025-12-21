@@ -188,6 +188,7 @@ export const ChecklistDetails: React.FC<ChecklistDetailsProps> = ({ checklist, v
                     checklistId={checklist.id}
                     itemId={selectedItem.id}
                     itemLabel={selectedItem.label}
+                    vehicleId={vehicle.id}
                     onClose={() => {
                         setShowCorrectiveForm(false);
                         setSelectedItem(null);
