@@ -1,6 +1,7 @@
+```
 import React, { useState } from 'react';
 import { useFinancial } from '../../store/FinancialContext';
-import { Building2, Plus, Trash2, Edit2, Phone, Mail, FileText } from 'lucide-react';
+import { Search, Plus, Edit2, Phone, Mail, MapPin, Building2, ShoppingBag } from 'lucide-react';
 import type { Supplier } from '../../types';
 
 export const SuppliersPage: React.FC = () => {

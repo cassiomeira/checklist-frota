@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Download, Upload, AlertCircle, CheckCircle, Save, Database } from 'lucide-react';
+import { Download, Upload, AlertCircle, CheckCircle, Database } from 'lucide-react';
 
 export const BackupPage: React.FC = () => {
     const [loading, setLoading] = useState(false);

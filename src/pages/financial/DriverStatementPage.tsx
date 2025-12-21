@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useFinancial } from '../../store/FinancialContext';
-import { User, Calendar, DollarSign, ArrowUpRight, ArrowDownLeft, FileText, Printer } from 'lucide-react';
+import { User, DollarSign, Printer } from 'lucide-react';
 import clsx from 'clsx';
 
 export const DriverStatementPage: React.FC = () => {

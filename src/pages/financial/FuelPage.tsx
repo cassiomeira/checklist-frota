@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 
 export const FuelPage: React.FC = () => {
     const { fuelEntries, addFuelEntry, updateFuelEntry, deleteFuelEntry, accounts, suppliers } = useFinancial();
-    const { vehicles, drivers } = useFleet();
+    const { vehicles } = useFleet();
 
     // Form State
     const [isAdding, setIsAdding] = useState(false);

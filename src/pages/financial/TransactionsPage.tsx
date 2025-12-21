@@ -148,7 +148,6 @@ export const TransactionsPage: React.FC = () => {
                         driverId: driverId, // The driver gets the commission
                         payeeType: 'DRIVER' // Helper for UI but not DB field strictly in all ver, but good for context
                     };
-
                     // We need to shape commissionTx correctly for addTransactions
                     // Our payload builder above handles some mappings, let's construct explicit objects
 
