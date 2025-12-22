@@ -3,7 +3,9 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIn
 import { supabase } from '../lib/supabase';
 
 export default function HistoryScreen({ driver, onBack }) {
+    const [activeTab, setActiveTab] = useState('checklists'); // 'checklists' | 'trips'
     const [checklists, setChecklists] = useState([]);
+    const [trips, setTrips] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedChecklist, setSelectedChecklist] = useState(null);
     const [corrections, setCorrections] = useState([]);
@@ -15,20 +17,27 @@ export default function HistoryScreen({ driver, onBack }) {
     const [sendingCorrection, setSendingCorrection] = useState(false);
 
     useEffect(() => {
-        loadHistory();
+        loadData();
     }, []);
 
-    const loadHistory = async () => {
+    const loadData = async () => {
         try {
             setLoading(true);
-            const { data, error } = await supabase
-                .from('checklists')
-                .select('*')
-                .eq('driver_id', driver.id)
-                .order('date', { ascending: false });
 
-            if (error) throw error;
-            setChecklists(data || []);
+            // 1. Fetch Checklists
+            const { data: checklistData, error: checklistError } = await supabase.rpc('get_driver_history', {
+                p_driver_id: driver.id
+            });
+            if (checklistError) throw checklistError;
+            setChecklists(checklistData || []);
+
+            // 2. Fetch Trips
+            const { data: tripData, error: tripError } = await supabase.rpc('get_driver_trip_history', {
+                p_driver_id: driver.id
+            });
+            if (tripError) throw tripError;
+            setTrips(tripData || []);
+
         } catch (err) {
             Alert.alert('Erro', 'Erro ao carregar histórico: ' + err.message);
         } finally {
@@ -51,10 +60,10 @@ export default function HistoryScreen({ driver, onBack }) {
     const loadCorrections = async (checklistId) => {
         try {
             setLoadingDetails(true);
-            const { data, error } = await supabase
-                .from('corrective_actions')
-                .select('*')
-                .eq('checklist_id', checklistId);
+            // Use RPC for secure corrections fetch
+            const { data, error } = await supabase.rpc('get_checklist_corrections', {
+                p_checklist_id: checklistId
+            });
 
             if (data) setCorrections(data);
         } catch (err) {
@@ -77,29 +86,22 @@ export default function HistoryScreen({ driver, onBack }) {
 
         try {
             setSendingCorrection(true);
-            const itemId = item.id || item.name; // Fallback para checklists antigos
+            const itemId = item.id || item.name;
 
-            const { error } = await supabase
-                .from('corrective_actions')
-                .insert({
-                    checklist_id: selectedChecklist.id,
-                    item_id: itemId,
-                    corrected_by: driver.name,
-                    action_taken: correctionText, // Mobile usa snake_case ou camelCase? Verificando types... O banco provavelmente é snake_case
-                    // Mas o context web usa map. Vamos tentar inserir snake_case direto.
-                    // Espera, no web app a gente usou um context que mapeava.
-                    // O insert direto no supabase usa os nomes das colunas do banco.
-                    // Vamos assumir snake_case: action_taken, created_at, verified (default false)
-                    created_at: new Date().toISOString(),
-                    verified: false
-                });
+            // Use RPC for secure correction insert
+            const { error } = await supabase.rpc('add_correction', {
+                p_checklist_id: selectedChecklist.id,
+                p_item_id: itemId,
+                p_corrected_by: driver.name,
+                p_action_taken: correctionText
+            });
 
             if (error) throw error;
 
             Alert.alert('Sucesso', 'Correção registrada!');
             setCorrectingItemId(null);
             setCorrectionText('');
-            loadCorrections(selectedChecklist.id); // Recarregar correções
+            loadCorrections(selectedChecklist.id);
 
         } catch (err) {
             Alert.alert('Erro', 'Falha ao salvar: ' + err.message);
@@ -113,6 +115,15 @@ export default function HistoryScreen({ driver, onBack }) {
         return date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     };
 
+    const formatDuration = (start, end) => {
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        const diffMs = endDate - startDate;
+        const diffHrs = Math.floor(diffMs / 3600000);
+        const diffMins = Math.round((diffMs % 3600000) / 60000);
+        return `${diffHrs}h ${diffMins}m`;
+    };
+
     return (
         <View style={styles.container}>
             <View style={styles.header}>
@@ -123,37 +134,94 @@ export default function HistoryScreen({ driver, onBack }) {
                 <View style={{ width: 60 }} />
             </View>
 
+            {/* TABS */}
+            <View style={styles.tabs}>
+                <TouchableOpacity
+                    style={[styles.tab, activeTab === 'checklists' && styles.activeTab]}
+                    onPress={() => setActiveTab('checklists')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'checklists' && styles.activeTabText]}>Checklists</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.tab, activeTab === 'trips' && styles.activeTab]}
+                    onPress={() => setActiveTab('trips')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'trips' && styles.activeTabText]}>Viagens</Text>
+                </TouchableOpacity>
+            </View>
+
             {loading ? (
                 <View style={styles.center}>
                     <ActivityIndicator size="large" color="#f59e0b" />
                 </View>
-            ) : checklists.length === 0 ? (
-                <View style={styles.center}>
-                    <Text style={styles.emptyText}>Nenhum checklist encontrado</Text>
-                </View>
             ) : (
                 <ScrollView style={styles.content}>
-                    {checklists.map((item) => (
-                        <TouchableOpacity key={item.id} style={styles.card} onPress={() => handleSelectChecklist(item)}>
-                            <View style={styles.cardHeader}>
-                                <Text style={styles.date}>{formatDate(item.date)}</Text>
-                                <View style={[styles.statusBadge, item.status === 'COMPLETED' ? styles.statusOk : styles.statusProblem]}>
-                                    <Text style={[styles.statusText, item.status === 'COMPLETED' ? styles.textOk : styles.textProblem]}>
-                                        {item.status === 'COMPLETED' ? 'APROVADO' : 'PENDENTE'}
-                                    </Text>
-                                </View>
+
+                    {/* CHECKLISTS LIST */}
+                    {activeTab === 'checklists' && (
+                        checklists.length === 0 ? (
+                            <View style={styles.center}>
+                                <Text style={styles.emptyText}>Nenhum checklist encontrado</Text>
                             </View>
-                            <Text style={styles.type}>
-                                {item.type === 'MAINTENANCE' ? '🔧 Manutenção' : '📦 Carga'}
-                            </Text>
-                            <Text style={styles.clickHint}>Toque para ver detalhes</Text>
-                        </TouchableOpacity>
-                    ))}
+                        ) : (
+                            checklists.map((item) => (
+                                <TouchableOpacity key={item.id} style={styles.card} onPress={() => handleSelectChecklist(item)}>
+                                    <View style={styles.cardHeader}>
+                                        <Text style={styles.date}>{formatDate(item.date)}</Text>
+                                        <View style={[styles.statusBadge, item.status === 'COMPLETED' ? styles.statusOk : styles.statusProblem]}>
+                                            <Text style={[styles.statusText, item.status === 'COMPLETED' ? styles.textOk : styles.textProblem]}>
+                                                {item.status === 'COMPLETED' ? 'APROVADO' : 'PENDENTE'}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <Text style={styles.type}>
+                                        {item.type === 'MAINTENANCE' ? '🔧 Manutenção' : '📦 Carga'}
+                                    </Text>
+                                    <Text style={styles.clickHint}>Toque para ver detalhes</Text>
+                                </TouchableOpacity>
+                            ))
+                        )
+                    )}
+
+                    {/* TRIPS LIST */}
+                    {activeTab === 'trips' && (
+                        trips.length === 0 ? (
+                            <View style={styles.center}>
+                                <Text style={styles.emptyText}>Nenhuma viagem encontrada</Text>
+                            </View>
+                        ) : (
+                            trips.map((trip) => (
+                                <View key={trip.id} style={styles.card}>
+                                    <View style={styles.cardHeader}>
+                                        <Text style={styles.date}>{formatDate(trip.start_date)}</Text>
+                                        <View style={[styles.statusBadge, styles.statusOk]}>
+                                            <Text style={[styles.statusText, styles.textOk]}>CONCLUÍDA</Text>
+                                        </View>
+                                    </View>
+                                    <Text style={styles.tripRoute}>{trip.start_location} ➔ {trip.end_location}</Text>
+
+                                    <View style={styles.tripInfoRow}>
+                                        <Text style={styles.tripInfoLabel}>Veículo:</Text>
+                                        <Text style={styles.tripInfoValue}>{trip.vehicle_plate}</Text>
+                                    </View>
+                                    <View style={styles.tripInfoRow}>
+                                        <Text style={styles.tripInfoLabel}>Distância:</Text>
+                                        <Text style={styles.tripInfoValue}>{(trip.end_km - trip.start_km).toFixed(1)} km</Text>
+                                    </View>
+                                    <View style={styles.tripInfoRow}>
+                                        <Text style={styles.tripInfoLabel}>Duração:</Text>
+                                        <Text style={styles.tripInfoValue}>{formatDuration(trip.start_date, trip.end_date)}</Text>
+                                    </View>
+                                </View>
+                            ))
+                        )
+                    )}
+
                     <View style={{ height: 40 }} />
                 </ScrollView>
             )}
 
-            {/* MODAL DE DETALHES */}
+            {/* MODAL DE DETALHES (Checklist) */}
             <Modal visible={!!selectedChecklist} animationType="slide" transparent={true}>
                 <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.modalContainer}>
                     <View style={styles.modalContent}>
@@ -279,6 +347,19 @@ const styles = StyleSheet.create({
     type: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
     clickHint: { color: '#64748b', fontSize: 12, marginTop: 8, fontStyle: 'italic' },
     emptyText: { color: '#64748b', fontSize: 16 },
+
+    // TABS
+    tabs: { flexDirection: 'row', backgroundColor: '#1e293b', padding: 4 },
+    tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
+    activeTab: { borderBottomColor: '#f59e0b' },
+    tabText: { color: '#94a3b8', fontWeight: '600' },
+    activeTabText: { color: '#f59e0b', fontWeight: 'bold' },
+
+    // TRIP STYLES
+    tripRoute: { color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
+    tripInfoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+    tripInfoLabel: { color: '#94a3b8', fontSize: 14 },
+    tripInfoValue: { color: '#cbd5e1', fontSize: 14, fontWeight: '600' },
 
     // Modal Styles
     modalContainer: {

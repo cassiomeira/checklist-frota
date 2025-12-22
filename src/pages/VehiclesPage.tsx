@@ -61,11 +61,19 @@ export const VehiclesPage: React.FC = () => {
                         className="group bg-slate-800/40 backdrop-blur-md p-6 rounded-2xl border border-slate-700/50 hover:bg-slate-800/60 hover:border-industrial-accent/30 transition-all shadow-lg cursor-pointer"
                     >
                         <div className="flex items-start gap-4 mb-4">
-                            <div className={`p-3 rounded-xl ${v.type === 'CAVALO' ? 'bg-industrial-accent/10' : 'bg-purple-500/10'}`}>
-                                {v.type === 'CAVALO' ? (
-                                    <Truck className="text-industrial-accent" size={28} />
+                            <div className={`relative w-32 h-32 rounded-xl overflow-hidden flex items-center justify-center shrink-0 ${v.type === 'CAVALO' ? 'bg-industrial-accent/10' : 'bg-purple-500/10'}`}>
+                                {v.photos && v.photos.length > 0 ? (
+                                    <img
+                                        src={v.photos[0]}
+                                        alt={v.plate}
+                                        className="w-full h-full object-cover"
+                                    />
                                 ) : (
-                                    <Warehouse className="text-purple-400" size={28} />
+                                    v.type === 'CAVALO' ? (
+                                        <Truck className="text-industrial-accent" size={48} />
+                                    ) : (
+                                        <Warehouse className="text-purple-400" size={48} />
+                                    )
                                 )}
                             </div>
                             <div className="flex-1">

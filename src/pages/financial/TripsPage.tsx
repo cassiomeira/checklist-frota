@@ -8,11 +8,11 @@ import { TripForm } from '../../components/TripForm';
                 <TripForm onClose={handleCloseModal} trip={selectedTrip} />
             ) */}
 import type { Trip } from '../../types';
-import { Plus, Truck, Calendar, Search, Play, CheckCircle } from 'lucide-react';
+import { Plus, Truck, Calendar, Search, Play, CheckCircle, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 
 export const TripsPage: React.FC = () => {
-    const { trips } = useFinancial();
+    const { trips, deleteTrip } = useFinancial();
     const { vehicles } = useFleet();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedTrip, setSelectedTrip] = useState<Trip | undefined>(undefined);
@@ -27,6 +27,13 @@ export const TripsPage: React.FC = () => {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setSelectedTrip(undefined);
+    };
+
+    const handleDeleteTrip = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        if (confirm('Tem certeza que deseja excluir esta viagem?')) {
+            await deleteTrip(id);
+        }
     };
 
     const filteredTrips = useMemo(() => {
@@ -192,6 +199,13 @@ export const TripsPage: React.FC = () => {
                                         className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold border border-slate-700 transition-colors"
                                     >
                                         {trip.status === 'IN_PROGRESS' ? 'Finalizar' : 'Detalhes'}
+                                    </button>
+                                    <button
+                                        onClick={(e) => handleDeleteTrip(e, trip.id)}
+                                        className="ml-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 px-3 py-2 rounded-lg border border-red-500/20 transition-colors"
+                                        title="Excluir Viagem"
+                                    >
+                                        <Trash2 size={18} />
                                     </button>
                                 </div>
                             </div>

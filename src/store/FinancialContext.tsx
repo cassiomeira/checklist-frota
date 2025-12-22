@@ -36,6 +36,7 @@ interface FinancialContextType {
     // Trip Actions [NEW]
     addTrip: (trip: Omit<Trip, 'id'>) => Promise<void>;
     updateTrip: (id: string, data: Partial<Trip>) => Promise<void>;
+    deleteTrip: (id: string) => Promise<void>;
 }
 
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
@@ -457,6 +458,14 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const { error } = await supabase.from('trips').update(payload).eq('id', id);
         if (error) throw error;
         await fetchData();
+        if (error) throw error;
+        await fetchData();
+    };
+
+    const deleteTrip = async (id: string) => {
+        const { error } = await supabase.from('trips').delete().eq('id', id);
+        if (error) throw error;
+        await fetchData();
     };
 
     return (
@@ -467,7 +476,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             addCustomer, updateCustomer, deleteCustomer,
             addTransaction, addTransactions, updateTransaction, deleteTransaction, deleteTransactions,
             fuelEntries, addFuelEntry, updateFuelEntry, deleteFuelEntry,
-            addTrip, updateTrip
+            addTrip, updateTrip, deleteTrip
         }}>
             {children}
         </FinancialContext.Provider>

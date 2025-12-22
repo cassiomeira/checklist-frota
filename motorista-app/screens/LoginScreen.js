@@ -17,37 +17,29 @@ export default function LoginScreen({ onLogin }) {
         const cleanCpf = cpf.replace(/\D/g, '');
 
         try {
-            // 1. Buscar motorista pelo CPF
-            const { data, error } = await supabase
-                .from('drivers')
-                .select('*')
-                .eq('cpf', cleanCpf)
-                .limit(1);
+            // 1. Tentar login via RPC (Função Segura que ignora RLS)
+            const { data, error } = await supabase.rpc('driver_login', {
+                p_cpf: cleanCpf,
+                p_password: password
+            });
 
-            console.log('Resultado Query (raw):', JSON.stringify({ data, error }, null, 2));
+            console.log('Resultado RPC:', JSON.stringify({ data, error }, null, 2));
 
             if (error) {
-                console.error('ERRO QUERY:', error);
-                Alert.alert('Erro Query', `Erro ao buscar motorista: ${error.message}`);
+                console.error('ERRO RPC:', error);
+                Alert.alert('Erro', `Erro ao tentar login: ${error.message}`);
                 setLoading(false);
                 return;
             }
 
-            if (!data || data.length === 0) {
-                console.warn('NENHUM DADO ENCONTRADO para o CPF:', cpf);
-                Alert.alert('Erro', `CPF ${cpf} não encontrado no banco de dados.\n\nVerifique se o usuário foi criado no painel.`);
+            if (!data) {
+                console.warn('LOGIN FALHOU: Credenciais inválidas');
+                Alert.alert('Acesso Negado', 'CPF ou senha incorretos.\n\nVerifique se o cadastro foi feito no painel web.');
                 setLoading(false);
                 return;
             }
 
-            const driverData = data[0]; // Pegando o primeiro item já que removemos .single()
-
-            if (driverData.password !== password) {
-                console.warn('SENHA INCORRETA para:', cpf);
-                Alert.alert('Erro', 'Senha incorreta');
-                setLoading(false);
-                return;
-            }
+            const driverData = data; // O RPC já retorna o objeto do motorista ou null
 
             console.log('LOGIN SUCESSO! Dados:', driverData);
             onLogin(driverData);

@@ -3,38 +3,109 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, Truck, Users, ClipboardCheck,
-    Wallet, Map as MapIcon, FileText, Settings, LogOut, Save
+    Wallet, Map as MapIcon, FileText, Settings, LogOut, Save,
+    ChevronDown, ChevronRight, Droplets, CreditCard, UserCircle, Building2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import clsx from 'clsx';
 
-const MAIN_MENU_ITEMS = [
+interface MenuItem {
+    label: string;
+    path?: string;
+    icon: React.ElementType;
+    children?: MenuItem[];
+}
+
+const MAIN_MENU_ITEMS: MenuItem[] = [
     { icon: LayoutDashboard, label: 'Painel de Controle', path: '/' },
     { icon: Truck, label: 'Frota', path: '/vehicles' },
     { icon: Users, label: 'Motoristas', path: '/drivers' },
     { icon: ClipboardCheck, label: 'Checklist Diário', path: '/checklist' },
-    { icon: Wallet, label: 'Financeiro', path: '/financial' },
-    { icon: MapIcon, label: 'Viagens', path: '/financial/trips' },
-    { icon: FileText, label: 'Extrato Motorista', path: '/financial/driver-statement' },
-    { icon: FileText, label: 'Relatórios (DRE)', path: '/financial/reports' },
+    {
+        icon: Wallet,
+        label: 'Financeiro',
+        children: [
+            { icon: Wallet, label: 'Lançamentos', path: '/financial' },
+            { icon: MapIcon, label: 'Viagens', path: '/financial/trips' },
+            { icon: Droplets, label: 'Abastecimento', path: '/financial/fuel' },
+            { icon: FileText, label: 'Extrato Motorista', path: '/financial/driver-statement' },
+            { icon: CreditCard, label: 'Carteiras / Bancos', path: '/financial/accounts' },
+            { icon: UserCircle, label: 'Clientes', path: '/financial/customers' },
+            { icon: Building2, label: 'Fornecedores', path: '/financial/suppliers' },
+            { icon: FileText, label: 'Relatórios', path: '/financial/reports' },
+        ]
+    },
 ];
 
-const NavItem: React.FC<{ to: string; icon: React.ReactNode; label: string }> = ({ to, icon, label }) => {
+const NavItem: React.FC<{ item: MenuItem }> = ({ item }) => {
     const location = useLocation();
-    const isActive = location.pathname === to;
+    const navigate = useNavigate();
+    const [isOpen, setIsOpen] = useState(false);
+
+    // Check if any child is active to auto-open
+    const hasActiveChild = item.children?.some(child => child.path === location.pathname);
+    const isActive = item.path === location.pathname || hasActiveChild;
+
+    useEffect(() => {
+        if (hasActiveChild) {
+            setIsOpen(true);
+        }
+    }, [hasActiveChild]);
+
+    if (item.children) {
+        return (
+            <div className="mb-1">
+                <button
+                    onClick={() => setIsOpen(!isOpen)}
+                    className={clsx(
+                        "w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 border border-transparent group",
+                        isActive
+                            ? "bg-industrial-accent/10 text-industrial-accent border-industrial-accent/20"
+                            : "text-gray-400 hover:text-white hover:bg-white/5"
+                    )}
+                >
+                    <div className="flex items-center gap-3">
+                        <item.icon size={20} />
+                        <span className="font-medium">{item.label}</span>
+                    </div>
+                    {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </button>
+
+                {isOpen && (
+                    <div className="mt-1 ml-4 pl-4 border-l border-slate-700/50 space-y-1 animate-fade-in">
+                        {item.children.map((child) => (
+                            <Link
+                                key={child.path}
+                                to={child.path!}
+                                className={clsx(
+                                    "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 text-sm",
+                                    location.pathname === child.path
+                                        ? "bg-industrial-accent text-slate-900 font-bold shadow-md shadow-industrial-accent/10"
+                                        : "text-gray-400 hover:text-white hover:bg-white/5"
+                                )}
+                            >
+                                <child.icon size={16} />
+                                <span>{child.label}</span>
+                            </Link>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     return (
         <Link
-            to={to}
+            to={item.path!}
             className={clsx(
-                "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 border border-transparent",
+                "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 border border-transparent mb-1",
                 isActive
                     ? "bg-industrial-accent text-slate-900 font-bold shadow-lg shadow-industrial-accent/20"
                     : "text-gray-400 hover:text-white hover:bg-white/5 hover:border-white/5"
             )}
         >
-            {icon}
-            <span>{label}</span>
+            <item.icon size={20} />
+            <span>{item.label}</span>
         </Link>
     );
 };
@@ -74,16 +145,16 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     </div>
                 </div>
 
-                <nav className="flex-1 p-6 space-y-2 overflow-y-auto custom-scrollbar">
+                <nav className="flex-1 p-6 space-y-1 overflow-y-auto custom-scrollbar">
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 px-4">Menu Principal</p>
-                    {MAIN_MENU_ITEMS.map((item) => (
-                        <NavItem key={item.path} to={item.path} icon={<item.icon size={20} />} label={item.label} />
+                    {MAIN_MENU_ITEMS.map((item, index) => (
+                        <NavItem key={index} item={item} />
                     ))}
 
                     <div className="pt-4 mt-4 border-t border-slate-700/50">
                         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 px-4">Configurações</p>
-                        <NavItem to="/settings" icon={<Settings size={20} />} label="Itens do Checklist" />
-                        <NavItem to="/backup" icon={<Save size={20} />} label="Backup e Restauração" />
+                        <NavItem item={{ path: "/settings", icon: Settings, label: "Itens do Checklist" }} />
+                        <NavItem item={{ path: "/backup", icon: Save, label: "Backup e Restauração" }} />
                     </div>
                 </nav>
 

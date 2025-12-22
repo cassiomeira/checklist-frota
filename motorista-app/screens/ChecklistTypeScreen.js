@@ -11,11 +11,21 @@ export default function ChecklistTypeScreen({ driver, onBack, onTypeSelected }) 
     }, []);
 
     const loadVehicles = async () => {
-        const { data } = await supabase
-            .from('vehicles')
-            .select('*')
-            .eq('default_driver_id', driver.id);
-        if (data) setVehicles(data);
+        try {
+            // Usar RPC para buscar veículos (bypassing RLS)
+            const { data, error } = await supabase.rpc('get_driver_vehicles', {
+                p_driver_id: driver.id
+            });
+
+            if (error) {
+                console.error('Erro ao buscar veículos:', error);
+                return;
+            }
+
+            if (data) setVehicles(data);
+        } catch (err) {
+            console.error('Erro geral ao buscar veículos:', err);
+        }
     };
 
     const handleNext = () => {

@@ -28,15 +28,10 @@ export default function ChecklistScreen({ driver, type, vehicles, onBack, onComp
         const fetchItems = async () => {
             setLoadingItems(true);
             try {
-                // Fetch all active items for this type
-                const { data, error } = await supabase
-                    .from('checklist_definitions')
-                    .select('*')
-                    .eq('type', type)
-                    .eq('is_active', true)
-                    // Order by category then name
-                    .order('category', { ascending: true })
-                    .order('name', { ascending: true });
+                // Fetch items via RPC (bypassing RLS)
+                const { data, error } = await supabase.rpc('get_checklist_definitions', {
+                    p_type: type
+                });
 
                 if (error) throw error;
 
@@ -69,8 +64,6 @@ export default function ChecklistScreen({ driver, type, vehicles, onBack, onComp
                 setChecklistSections(sections);
 
                 // Clear state when items change (e.g. vehicle switch)
-                // Note: We might want to preserve state if just switching back and forth, 
-                // but for now clearing is safer to avoid ID mismatch or confusion.
                 setStatus({});
                 setPhotos({});
                 setComments({});
@@ -154,17 +147,14 @@ export default function ChecklistScreen({ driver, type, vehicles, onBack, onComp
                 comment: comments[item.id] || ''
             }));
 
-            const { error } = await supabase
-                .from('checklists')
-                .insert({
-                    vehicle_id: selectedVehicle.id,
-                    driver_id: driver.id,
-                    driver_name: driver.name,
-                    type,
-                    date: new Date().toISOString(),
-                    items: submissionItems,
-                    status: submissionItems.some(i => i.status === 'PROBLEM') ? 'PENDING' : 'COMPLETED'
-                });
+            // Submit via RPC (Secure)
+            const { error } = await supabase.rpc('submit_checklist', {
+                p_vehicle_id: selectedVehicle.id,
+                p_driver_id: driver.id,
+                p_driver_name: driver.name,
+                p_type: type,
+                p_items: submissionItems
+            });
 
             if (error) throw error;
 
