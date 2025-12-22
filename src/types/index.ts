@@ -126,6 +126,7 @@ export interface Transaction {
     commissionValue?: number;
     createdBy?: string;
     notes?: string;
+    attachmentUrl?: string;
 }
 
 export interface Trip {

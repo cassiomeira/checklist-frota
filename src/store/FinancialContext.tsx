@@ -318,7 +318,8 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             trip_id: transaction.tripId,
             checklist_id: transaction.checklistId,
             notes: transaction.notes,
-            created_by: transaction.createdBy || user?.id // Auto-fill if not provided
+            created_by: transaction.createdBy || user?.id,
+            attachment_url: transaction.attachmentUrl
         }).select().single();
         if (error) throw error;
         await fetchData();
@@ -338,12 +339,12 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (data.accountId) payload.account_id = data.accountId;
         if (data.vehicleId) payload.vehicle_id = data.vehicleId;
         if (data.supplierId) payload.supplier_id = data.supplierId;
-        if (data.supplierId) payload.supplier_id = data.supplierId;
         if (data.customerId) payload.customer_id = data.customerId;
         if (data.driverId) payload.driver_id = data.driverId;
         if (data.tripId) payload.trip_id = data.tripId;
         if (data.checklistId) payload.checklist_id = data.checklistId;
         if (data.notes) payload.notes = data.notes;
+        if (data.attachmentUrl) payload.attachment_url = data.attachmentUrl;
 
         const { error } = await supabase.from('transactions').update(payload).eq('id', id);
         if (error) throw error;

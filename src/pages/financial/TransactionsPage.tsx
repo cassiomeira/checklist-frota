@@ -41,6 +41,20 @@ export const TransactionsPage: React.FC = () => {
     // Commission State
     const [generateCommission, setGenerateCommission] = useState(false);
 
+    // Attachment State
+    const [attachment, setAttachment] = useState<string | null>(null);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setAttachment(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     // Search
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -83,6 +97,7 @@ export const TransactionsPage: React.FC = () => {
             setDriverId(tx.driverId || '');
             setVehicleId(tx.vehicleId || '');
             setPayeeType(tx.driverId ? 'DRIVER' : 'SUPPLIER');
+            setAttachment(tx.attachmentUrl || null);
         } else {
             setEditingTx(null);
             setDescription('');
@@ -98,6 +113,7 @@ export const TransactionsPage: React.FC = () => {
             setDriverId('');
             setVehicleId('');
             setPayeeType('SUPPLIER');
+            setAttachment(null);
         }
         setIsModalOpen(true);
     };
@@ -121,7 +137,8 @@ export const TransactionsPage: React.FC = () => {
                 customerId: type === 'INCOME' ? (customerId || undefined) : undefined,
                 driverId: (type === 'EXPENSE' && payeeType === 'DRIVER') ? (driverId || undefined) : (type === 'INCOME' && generateCommission ? driverId : undefined),
                 vehicleId: vehicleId || undefined,
-                commissionValue: commissionVal
+                commissionValue: commissionVal,
+                attachmentUrl: attachment || undefined
             };
 
             if (editingTx) {
@@ -422,6 +439,15 @@ export const TransactionsPage: React.FC = () => {
                                                     <CheckCircle2 size={18} />
                                                 </button>
                                             )}
+                                            {tx.attachmentUrl && (
+                                                <button
+                                                    onClick={() => window.open(tx.attachmentUrl, '_blank')}
+                                                    className="p-2 hover:bg-purple-500/20 text-purple-400 rounded-lg"
+                                                    title="Ver Anexo"
+                                                >
+                                                    <FileText size={18} />
+                                                </button>
+                                            )}
                                             <button onClick={() => handleOpenModal(tx)} className="p-2 hover:bg-slate-700 text-blue-400 rounded-lg" title="Editar">
                                                 <Filter size={18} />
                                             </button>
@@ -623,12 +649,33 @@ export const TransactionsPage: React.FC = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Conta / Carteira</label>
                                     <select value={accountId} onChange={e => setAccountId(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
                                         <option value="">Selecione...</option>
                                         {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                                     </select>
                                 </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Comprovante / Anexo (Imagem)</label>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleFileChange}
+                                    className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-slate-700 file:text-white hover:file:bg-slate-600 cursor-pointer"
+                                />
+                                {attachment && (
+                                    <div className="mt-2 relative w-32 h-32 rounded-lg overflow-hidden border border-slate-700 group">
+                                        <img src={attachment} alt="Anexo" className="w-full h-full object-cover" />
+                                        <button
+                                            type="button"
+                                            onClick={() => setAttachment(null)}
+                                            className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white font-bold text-xs"
+                                        >
+                                            Remover
+                                        </button>
+                                    </div>
+                                )}
                             </div>
 
                             <div>
