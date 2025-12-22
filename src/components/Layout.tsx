@@ -39,7 +39,6 @@ const MAIN_MENU_ITEMS: MenuItem[] = [
 
 const NavItem: React.FC<{ item: MenuItem }> = ({ item }) => {
     const location = useLocation();
-    const navigate = useNavigate();
     const [isOpen, setIsOpen] = useState(false);
 
     // Check if any child is active to auto-open
