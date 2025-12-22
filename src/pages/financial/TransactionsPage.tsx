@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useFinancial } from '../../store/FinancialContext';
 import { useFleet } from '../../store/FleetContext';
-import { Plus, Filter, CheckCircle2, AlertCircle, Trash2, Search } from 'lucide-react';
+import { Plus, Filter, CheckCircle2, AlertCircle, Trash2, Search, FileText } from 'lucide-react';
 import clsx from 'clsx';
 import type { Transaction } from '../../types';
 
