@@ -130,7 +130,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     else console.log('DEBUG: No transactions with attachments found in fetch');
                 }
 
-                setTransactions(transData.map((t: any) => ({
+                const mappedTransactions = transData.map((t: any) => ({
                     id: t.id,
                     description: t.description,
                     amount: t.amount,
@@ -158,7 +158,13 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                         fileType: a.file_type,
                         createdAt: a.created_at
                     })) || []
-                })));
+                }));
+
+                console.log('DEBUG: Mapped transactions preview (first 2):', mappedTransactions.slice(0, 2));
+                const mappedSample = mappedTransactions.find(t => t.attachments && t.attachments.length > 0);
+                if (mappedSample) console.log('DEBUG: Mapped sample with attachments:', mappedSample);
+
+                setTransactions(mappedTransactions);
             }
 
             // Fetch Fuel Entries
