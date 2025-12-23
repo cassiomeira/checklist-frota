@@ -466,302 +466,305 @@ export const TransactionsPage: React.FC = () => {
                                                     <CheckCircle2 size={18} />
                                                 </button>
                                             )}
-                                            {tx.attachments && tx.attachments.length > 0 && (
-                                                <div className="relative group/attach">
-                                                    <button className="p-2 hover:bg-purple-500/20 text-purple-400 rounded-lg flex items-center gap-1" title="Anexos">
-                                                        <Paperclip size={18} />
-                                                        <span className="text-xs font-bold">{tx.attachments.length}</span>
-                                                    </button>
-
-                                                    {/* Dropdown for attachments */}
-                                                    <div className="absolute right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-2 min-w-[200px] z-50 hidden group-hover/attach:block">
-                                                        <div className="text-xs text-slate-400 px-2 py-1 mb-1 border-b border-slate-700 font-bold uppercase">Anexos</div>
-                                                        {tx.attachments.map((attach, idx) => (
-                                                            <button
-                                                                key={idx}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    const link = document.createElement('a');
-                                                                    link.href = attach.fileUrl;
-                                                                    link.download = attach.fileName || `anexo-${idx}`;
-                                                                    document.body.appendChild(link);
-                                                                    link.click();
-                                                                    document.body.removeChild(link);
-                                                                }}
-                                                                className="w-full text-left px-2 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded flex items-center gap-2 truncate"
-                                                            >
-                                                                <Download size={14} />
-                                                                <span className="truncate">{attach.fileName || `Anexo ${idx + 1}`}</span>
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-                                            <button onClick={() => handleOpenModal(tx)} className="p-2 hover:bg-slate-700 text-blue-400 rounded-lg" title="Editar">
-                                                <Filter size={18} />
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    if (confirm('Tem certeza que deseja excluir este lançamento?')) {
-                                                        deleteTransaction(tx.id);
-                                                    }
-                                                }}
-                                                className="p-2 hover:bg-red-500/20 text-red-500 rounded-lg"
-                                                title="Excluir"
-                                            >
-                                                <Trash2 size={18} />
-                                            </button>
                                         </div>
-                                    </td>
+                                        {tx.attachments && tx.attachments.length > 0 && (
+                                            <div className="relative group/attach ml-2">
+                                                <button className="p-2 bg-purple-500/10 text-purple-400 rounded-lg flex items-center gap-1 hover:bg-purple-500/20" title="Anexos (Passe o mouse)">
+                                                    <Paperclip size={18} />
+                                                    <span className="text-xs font-bold">{tx.attachments.length}</span>
+                                                </button>
+
+                                                {/* Dropdown for attachments */}
+                                                <div className="absolute right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-2 min-w-[200px] z-50 hidden group-hover/attach:block">
+                                                    <div className="text-xs text-slate-400 px-2 py-1 mb-1 border-b border-slate-700 font-bold uppercase">Anexos</div>
+                                                    {tx.attachments.map((attach, idx) => (
+                                                        <button
+                                                            key={idx}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const link = document.createElement('a');
+                                                                link.href = attach.fileUrl;
+                                                                link.download = attach.fileName || `anexo-${idx}`;
+                                                                document.body.appendChild(link);
+                                                                link.click();
+                                                                document.body.removeChild(link);
+                                                            }}
+                                                            className="w-full text-left px-2 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded flex items-center gap-2 truncate"
+                                                        >
+                                                            <Download size={14} />
+                                                            <span className="truncate">{attach.fileName || `Anexo ${idx + 1}`}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        <button onClick={() => handleOpenModal(tx)} className="p-2 hover:bg-slate-700 text-blue-400 rounded-lg" title="Editar">
+                                            <Filter size={18} />
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                if (confirm('Tem certeza que deseja excluir este lançamento?')) {
+                                                    deleteTransaction(tx.id);
+                                                }
+                                            }}
+                                            className="p-2 hover:bg-red-500/20 text-red-500 rounded-lg"
+                                            title="Excluir"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
+                                </td>
                                 </tr>
                             ))}
-                            {filteredTransactions.length === 0 && (
-                                <tr>
-                                    <td colSpan={7} className="p-10 text-center text-gray-500">
-                                        Nenhum lançamento encontrado neste período.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                        {filteredTransactions.length === 0 && (
+                            <tr>
+                                <td colSpan={7} className="p-10 text-center text-gray-500">
+                                    Nenhum lançamento encontrado neste período.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
             </div>
+        </div>
 
-            {/* Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
-                        <div className="p-6 border-b border-slate-700 flex justify-between items-center sticky top-0 bg-slate-900 z-10">
-                            <h3 className="text-xl font-bold text-white">
-                                {editingTx ? 'Editar Lançamento' : 'Novo Lançamento'}
-                            </h3>
-                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white">X</button>
+            {/* Modal */ }
+    {
+        isModalOpen && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+                    <div className="p-6 border-b border-slate-700 flex justify-between items-center sticky top-0 bg-slate-900 z-10">
+                        <h3 className="text-xl font-bold text-white">
+                            {editingTx ? 'Editar Lançamento' : 'Novo Lançamento'}
+                        </h3>
+                        <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white">X</button>
+                    </div>
+                    <form onSubmit={handleSubmit} className="p-6 space-y-6">
+
+                        <div className="flex gap-4 p-1 bg-slate-800 rounded-lg">
+                            <button type="button" onClick={() => setType('EXPENSE')} className={clsx("flex-1 py-2 rounded-md font-bold text-sm transition-all", type === 'EXPENSE' ? "bg-red-500 text-white shadow" : "text-gray-400 hover:text-white")}>
+                                DESPESA (Pagar)
+                            </button>
+                            <button type="button" onClick={() => setType('INCOME')} className={clsx("flex-1 py-2 rounded-md font-bold text-sm transition-all", type === 'INCOME' ? "bg-emerald-500 text-white shadow" : "text-gray-400 hover:text-white")}>
+                                RECEITA (Receber)
+                            </button>
                         </div>
-                        <form onSubmit={handleSubmit} className="p-6 space-y-6">
 
-                            <div className="flex gap-4 p-1 bg-slate-800 rounded-lg">
-                                <button type="button" onClick={() => setType('EXPENSE')} className={clsx("flex-1 py-2 rounded-md font-bold text-sm transition-all", type === 'EXPENSE' ? "bg-red-500 text-white shadow" : "text-gray-400 hover:text-white")}>
-                                    DESPESA (Pagar)
-                                </button>
-                                <button type="button" onClick={() => setType('INCOME')} className={clsx("flex-1 py-2 rounded-md font-bold text-sm transition-all", type === 'INCOME' ? "bg-emerald-500 text-white shadow" : "text-gray-400 hover:text-white")}>
-                                    RECEITA (Receber)
-                                </button>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Descrição *</label>
-                                    <input required value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none" />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Valor (R$) *</label>
-                                    <input required type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none" />
-                                </div>
-                            </div>
-
-                            {/* Commission Toggle for Income */}
-                            {!editingTx && type === 'INCOME' && (
-                                <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700/50 mb-6">
-                                    <label className="flex items-center gap-2 cursor-pointer mb-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={generateCommission}
-                                            onChange={e => setGenerateCommission(e.target.checked)}
-                                            className="w-4 h-4 accent-industrial-accent rounded"
-                                        />
-                                        <span className="text-white font-bold text-sm">Gerar Comissão (10%)?</span>
-                                    </label>
-                                    {generateCommission && (
-                                        <div className="animate-fade-in">
-                                            <p className="text-xs text-emerald-400 ml-6 mb-2">
-                                                Será creditado R$ {(parseFloat(amount || '0') * 0.10).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} para o motorista selecionado.
-                                            </p>
-                                            {/* Driver Selection for Income Commission */}
-                                            <div className="ml-6">
-                                                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Selecione o Motorista *</label>
-                                                <select required value={driverId} onChange={e => setDriverId(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
-                                                    <option value="">Selecione...</option>
-                                                    {drivers.map(d => (
-                                                        <option key={d.id} value={d.id}>{d.name}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {!editingTx && type === 'EXPENSE' && (
-                                <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700/50">
-                                    <label className="flex items-center gap-2 cursor-pointer mb-4">
-                                        <input
-                                            type="checkbox"
-                                            checked={isRecurrent}
-                                            onChange={e => setIsRecurrent(e.target.checked)}
-                                            className="w-4 h-4 accent-industrial-accent rounded"
-                                        />
-                                        <span className="text-white font-bold text-sm">Parcelar / Recorrência?</span>
-                                    </label>
-
-                                    {isRecurrent && (
-                                        <div className="grid grid-cols-2 gap-4 animate-fade-in">
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Nº Parcelas</label>
-                                                <input
-                                                    type="number"
-                                                    min="2"
-                                                    max="60"
-                                                    value={installments}
-                                                    onChange={e => setInstallments(e.target.value)}
-                                                    className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Intervalo</label>
-                                                <select className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none" disabled>
-                                                    <option>Mensal</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Data de Vencimento *</label>
-                                    <input required type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none" />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">
-                                        {status === 'PAID' ? (type === 'INCOME' ? 'Data do Recebimento' : 'Data do Pagamento') : 'Data Prevista (Opcional)'}
-                                    </label>
-                                    <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none" />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Status</label>
-                                    <select value={status} onChange={e => setStatus(e.target.value as any)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
-                                        <option value="PENDING">Pendente</option>
-                                        <option value="PAID">Pago / Recebido</option>
-                                    </select>
-                                </div>
-                                <div className="flex items-end">
-                                    {/* Spacer or additional logic could go here */}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">
-                                        {type === 'EXPENSE' ? (
-                                            <div className="flex gap-4">
-                                                <label className="cursor-pointer flex items-center gap-1">
-                                                    <input type="radio" checked={payeeType === 'SUPPLIER'} onChange={() => setPayeeType('SUPPLIER')} className="accent-industrial-accent" />
-                                                    Fornecedor
-                                                </label>
-                                                <label className="cursor-pointer flex items-center gap-1">
-                                                    <input type="radio" checked={payeeType === 'DRIVER'} onChange={() => setPayeeType('DRIVER')} className="accent-industrial-accent" />
-                                                    Motorista
-                                                </label>
-                                            </div>
-                                        ) : 'Cliente'}
-                                    </label>
-                                    {type === 'EXPENSE' ? (
-                                        payeeType === 'SUPPLIER' ? (
-                                            <select value={supplierId} onChange={e => setSupplierId(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
-                                                <option value="">Selecione o Fornecedor...</option>
-                                                {suppliers.map(s => <option key={s.id} value={s.id}>{s.tradeName}</option>)}
-                                            </select>
-                                        ) : (
-                                            <select value={driverId} onChange={e => setDriverId(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
-                                                <option value="">Selecione o Motorista...</option>
-                                                {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                                            </select>
-                                        )
-                                    ) : (
-                                        <select value={customerId} onChange={e => setCustomerId(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
-                                            <option value="">Selecione o Cliente...</option>
-                                            {customers.map(c => <option key={c.id} value={c.id}>{c.tradeName}</option>)}
-                                        </select>
-                                    )}
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Veículo (Opcional)</label>
-                                    <select value={vehicleId} onChange={e => setVehicleId(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
-                                        <option value="">Sem veículo vinculado</option>
-                                        {vehicles.map(v => (
-                                            <option key={v.id} value={v.id}>{v.plate} - {v.type === 'CAVALO' ? (v as any).model : 'Carreta'}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <select value={accountId} onChange={e => setAccountId(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
-                                        <option value="">Selecione...</option>
-                                        {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Comprovantes / Anexos (PDF, Imagens)</label>
-                                <input
-                                    type="file"
-                                    accept="image/*,application/pdf"
-                                    multiple
-                                    onChange={handleFileChange}
-                                    className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-slate-700 file:text-white hover:file:bg-slate-600 cursor-pointer"
-                                />
-                                <div className="mt-3 space-y-2">
-                                    {attachments.map((file, idx) => (
-                                        <div key={file.id || idx} className="flex items-center justify-between bg-slate-800/50 p-2 rounded-lg border border-slate-700">
-                                            <div className="flex items-center gap-3 overflow-hidden">
-                                                {file.fileType.includes('image') ? (
-                                                    <img src={file.fileUrl} alt="Preview" className="w-10 h-10 object-cover rounded" />
-                                                ) : (
-                                                    <div className="w-10 h-10 bg-red-500/20 text-red-400 flex items-center justify-center rounded">
-                                                        <span className="text-[10px] font-bold">PDF</span>
-                                                    </div>
-                                                )}
-                                                <span className="text-sm text-slate-300 truncate max-w-[200px]">{file.fileName}</span>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => removeAttachment(file.id)}
-                                                className="text-red-400 hover:text-red-300 p-1 rounded-lg hover:bg-red-500/10 transition-colors"
-                                            >
-                                                <div className="flex items-center gap-1 text-xs">
-                                                    <Trash2 size={14} />
-                                                    Remover
-                                                </div>
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
+                                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Descrição *</label>
+                                <input required value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none" />
                             </div>
-
                             <div>
-                                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Categoria</label>
-                                <select value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
-                                    <option value="GENERAL">Geral</option>
-                                    <option value="FUEL">Combustível</option>
-                                    <option value="MAINTENANCE">Manutenção</option>
-                                    <option value="PARTS">Peças</option>
-                                    <option value="SALARY">Salários</option>
-                                    <option value="TAXES">Impostos</option>
-                                    <option value="SERVICES">Serviços</option>
+                                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Valor (R$) *</label>
+                                <input required type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none" />
+                            </div>
+                        </div>
+
+                        {/* Commission Toggle for Income */}
+                        {!editingTx && type === 'INCOME' && (
+                            <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700/50 mb-6">
+                                <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={generateCommission}
+                                        onChange={e => setGenerateCommission(e.target.checked)}
+                                        className="w-4 h-4 accent-industrial-accent rounded"
+                                    />
+                                    <span className="text-white font-bold text-sm">Gerar Comissão (10%)?</span>
+                                </label>
+                                {generateCommission && (
+                                    <div className="animate-fade-in">
+                                        <p className="text-xs text-emerald-400 ml-6 mb-2">
+                                            Será creditado R$ {(parseFloat(amount || '0') * 0.10).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} para o motorista selecionado.
+                                        </p>
+                                        {/* Driver Selection for Income Commission */}
+                                        <div className="ml-6">
+                                            <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Selecione o Motorista *</label>
+                                            <select required value={driverId} onChange={e => setDriverId(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
+                                                <option value="">Selecione...</option>
+                                                {drivers.map(d => (
+                                                    <option key={d.id} value={d.id}>{d.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {!editingTx && type === 'EXPENSE' && (
+                            <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700/50">
+                                <label className="flex items-center gap-2 cursor-pointer mb-4">
+                                    <input
+                                        type="checkbox"
+                                        checked={isRecurrent}
+                                        onChange={e => setIsRecurrent(e.target.checked)}
+                                        className="w-4 h-4 accent-industrial-accent rounded"
+                                    />
+                                    <span className="text-white font-bold text-sm">Parcelar / Recorrência?</span>
+                                </label>
+
+                                {isRecurrent && (
+                                    <div className="grid grid-cols-2 gap-4 animate-fade-in">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Nº Parcelas</label>
+                                            <input
+                                                type="number"
+                                                min="2"
+                                                max="60"
+                                                value={installments}
+                                                onChange={e => setInstallments(e.target.value)}
+                                                className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Intervalo</label>
+                                            <select className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none" disabled>
+                                                <option>Mensal</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Data de Vencimento *</label>
+                                <input required type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">
+                                    {status === 'PAID' ? (type === 'INCOME' ? 'Data do Recebimento' : 'Data do Pagamento') : 'Data Prevista (Opcional)'}
+                                </label>
+                                <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none" />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Status</label>
+                                <select value={status} onChange={e => setStatus(e.target.value as any)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
+                                    <option value="PENDING">Pendente</option>
+                                    <option value="PAID">Pago / Recebido</option>
                                 </select>
                             </div>
+                            <div className="flex items-end">
+                                {/* Spacer or additional logic could go here */}
+                            </div>
+                        </div>
 
-                            <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all">
-                                {editingTx ? 'Salvar Alterações' : 'Criar Lançamento'}
-                            </button>
-                        </form>
-                    </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">
+                                    {type === 'EXPENSE' ? (
+                                        <div className="flex gap-4">
+                                            <label className="cursor-pointer flex items-center gap-1">
+                                                <input type="radio" checked={payeeType === 'SUPPLIER'} onChange={() => setPayeeType('SUPPLIER')} className="accent-industrial-accent" />
+                                                Fornecedor
+                                            </label>
+                                            <label className="cursor-pointer flex items-center gap-1">
+                                                <input type="radio" checked={payeeType === 'DRIVER'} onChange={() => setPayeeType('DRIVER')} className="accent-industrial-accent" />
+                                                Motorista
+                                            </label>
+                                        </div>
+                                    ) : 'Cliente'}
+                                </label>
+                                {type === 'EXPENSE' ? (
+                                    payeeType === 'SUPPLIER' ? (
+                                        <select value={supplierId} onChange={e => setSupplierId(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
+                                            <option value="">Selecione o Fornecedor...</option>
+                                            {suppliers.map(s => <option key={s.id} value={s.id}>{s.tradeName}</option>)}
+                                        </select>
+                                    ) : (
+                                        <select value={driverId} onChange={e => setDriverId(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
+                                            <option value="">Selecione o Motorista...</option>
+                                            {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                        </select>
+                                    )
+                                ) : (
+                                    <select value={customerId} onChange={e => setCustomerId(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
+                                        <option value="">Selecione o Cliente...</option>
+                                        {customers.map(c => <option key={c.id} value={c.id}>{c.tradeName}</option>)}
+                                    </select>
+                                )}
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Veículo (Opcional)</label>
+                                <select value={vehicleId} onChange={e => setVehicleId(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
+                                    <option value="">Sem veículo vinculado</option>
+                                    {vehicles.map(v => (
+                                        <option key={v.id} value={v.id}>{v.plate} - {v.type === 'CAVALO' ? (v as any).model : 'Carreta'}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <select value={accountId} onChange={e => setAccountId(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
+                                    <option value="">Selecione...</option>
+                                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Comprovantes / Anexos (PDF, Imagens)</label>
+                            <input
+                                type="file"
+                                accept="image/*,application/pdf"
+                                multiple
+                                onChange={handleFileChange}
+                                className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-slate-700 file:text-white hover:file:bg-slate-600 cursor-pointer"
+                            />
+                            <div className="mt-3 space-y-2">
+                                {attachments.map((file, idx) => (
+                                    <div key={file.id || idx} className="flex items-center justify-between bg-slate-800/50 p-2 rounded-lg border border-slate-700">
+                                        <div className="flex items-center gap-3 overflow-hidden">
+                                            {file.fileType.includes('image') ? (
+                                                <img src={file.fileUrl} alt="Preview" className="w-10 h-10 object-cover rounded" />
+                                            ) : (
+                                                <div className="w-10 h-10 bg-red-500/20 text-red-400 flex items-center justify-center rounded">
+                                                    <span className="text-[10px] font-bold">PDF</span>
+                                                </div>
+                                            )}
+                                            <span className="text-sm text-slate-300 truncate max-w-[200px]">{file.fileName}</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => removeAttachment(file.id)}
+                                            className="text-red-400 hover:text-red-300 p-1 rounded-lg hover:bg-red-500/10 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-1 text-xs">
+                                                <Trash2 size={14} />
+                                                Remover
+                                            </div>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Categoria</label>
+                            <select value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-white focus:border-industrial-accent focus:outline-none">
+                                <option value="GENERAL">Geral</option>
+                                <option value="FUEL">Combustível</option>
+                                <option value="MAINTENANCE">Manutenção</option>
+                                <option value="PARTS">Peças</option>
+                                <option value="SALARY">Salários</option>
+                                <option value="TAXES">Impostos</option>
+                                <option value="SERVICES">Serviços</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all">
+                            {editingTx ? 'Salvar Alterações' : 'Criar Lançamento'}
+                        </button>
+                    </form>
                 </div>
-            )}
-        </div>
+            </div>
+        )
+    }
+        </div >
     );
 };
