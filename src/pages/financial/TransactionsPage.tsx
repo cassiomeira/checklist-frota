@@ -108,6 +108,7 @@ export const TransactionsPage: React.FC = () => {
 
     const handleOpenModal = (tx?: Transaction) => {
         if (tx) {
+            console.log('DEBUG: Opening modal for tx:', tx.id, 'Attachments:', tx.attachments);
             setEditingTx(tx);
             setDescription(tx.description);
             setAmount(tx.amount.toString());
