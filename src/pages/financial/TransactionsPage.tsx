@@ -1,8 +1,8 @@
-```typescript
+
 import React, { useState, useMemo } from 'react';
 import { useFinancial } from '../../store/FinancialContext';
 import { useFleet } from '../../store/FleetContext';
-import { Plus, Filter, CheckCircle2, AlertCircle, Trash2, Search, FileText, Download } from 'lucide-react';
+import { Plus, Filter, CheckCircle2, AlertCircle, Trash2, Search, Download } from 'lucide-react';
 import clsx from 'clsx';
 import type { Transaction } from '../../types';
 
@@ -10,7 +10,7 @@ export const TransactionsPage: React.FC = () => {
     const { transactions, accounts, suppliers, customers, drivers, addTransaction, addTransactions, updateTransaction, deleteTransaction, deleteTransactions } = useFinancial();
     const { vehicles } = useFleet();
 
-    // Force deploy validation
+    // Force deploy validation (2025-12-23 11:10)
 
     // Filters
     const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
@@ -165,7 +165,7 @@ export const TransactionsPage: React.FC = () => {
                     await addTransactions([
                         incomeTx,
                         {
-                            description: `Comissão - ${ description } `,
+                            description: `Comissão - ${description} `,
                             amount: parseFloat((valAmount * 0.10).toFixed(2)),
                             type: 'EXPENSE',
                             status: 'PENDING',
@@ -188,7 +188,7 @@ export const TransactionsPage: React.FC = () => {
 
                         batch.push({
                             ...payload,
-                            description: `${ description } (${ i + 1 }/${count})`,
+                            description: `${description} (${i + 1}/${count})`,
                             dueDate: newDate.toISOString().split('T')[0],
                             status: 'PENDING' as 'PENDING', // Force pending for future installments
                             paymentDate: undefined // Clear payment date for future
@@ -258,7 +258,7 @@ export const TransactionsPage: React.FC = () => {
                     {selectedIds.length > 0 && (
                         <button
                             onClick={async () => {
-                                if (confirm(`Deseja excluir ${ selectedIds.length } lançamentos selecionados ? `)) {
+                                if (confirm(`Deseja excluir ${selectedIds.length} lançamentos selecionados?`)) {
                                     await deleteTransactions(selectedIds);
                                     setSelectedIds([]);
                                 }
@@ -410,7 +410,7 @@ export const TransactionsPage: React.FC = () => {
                                         <div className="font-bold text-white">{tx.description}</div>
                                         <div className="text-xs text-gray-500">
                                             {tx.supplierId ? suppliers.find(s => s.id === tx.supplierId)?.tradeName :
-                                                tx.driverId ? `Motorista: ${ drivers.find(d => d.id === tx.driverId)?.name } ` :
+                                                tx.driverId ? `Motorista: ${drivers.find(d => d.id === tx.driverId)?.name} ` :
                                                     tx.customerId ? customers.find(c => c.id === tx.customerId)?.tradeName : '-'}
                                         </div>
                                     </td>
@@ -442,17 +442,18 @@ export const TransactionsPage: React.FC = () => {
                                                     <CheckCircle2 size={18} />
                                                 </button>
                                             )}
+                                            {tx.attachmentUrl && (
                                                 <button
                                                     onClick={() => {
                                                         const link = document.createElement('a');
                                                         link.href = tx.attachmentUrl!;
-                                                        
+
                                                         // Try to determine extension from base64
                                                         let extension = 'png';
                                                         if (tx.attachmentUrl!.startsWith('data:image/jpeg')) extension = 'jpg';
                                                         else if (tx.attachmentUrl!.startsWith('data:application/pdf')) extension = 'pdf';
-                                                        
-                                                        link.download = `anexo - ${ tx.id }.${ extension } `;
+
+                                                        link.download = `anexo-${tx.id}.${extension}`;
                                                         document.body.appendChild(link);
                                                         link.click();
                                                         document.body.removeChild(link);
@@ -462,6 +463,7 @@ export const TransactionsPage: React.FC = () => {
                                                 >
                                                     <Download size={18} />
                                                 </button>
+                                            )}
                                             <button onClick={() => handleOpenModal(tx)} className="p-2 hover:bg-slate-700 text-blue-400 rounded-lg" title="Editar">
                                                 <Filter size={18} />
                                             </button>
