@@ -116,8 +116,20 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
 
             // Fetch Transactions
-            const { data: transData } = await supabase.from('transactions').select('*, transaction_attachments(*)').order('due_date', { ascending: false });
+            const { data: transData, error: transError } = await supabase.from('transactions').select('*, transaction_attachments(*)').order('due_date', { ascending: false });
+
+            if (transError) {
+                console.error('Error fetching transactions:', transError);
+            }
+
             if (transData) {
+                console.log('DEBUG: Transactions fetched via Supabase:', transData.length);
+                if (transData.length > 0) {
+                    const sample = transData.find((t: any) => t.transaction_attachments && t.transaction_attachments.length > 0);
+                    if (sample) console.log('DEBUG: Sample transaction with attachments:', sample);
+                    else console.log('DEBUG: No transactions with attachments found in fetch');
+                }
+
                 setTransactions(transData.map((t: any) => ({
                     id: t.id,
                     description: t.description,
