@@ -116,7 +116,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
 
             // Fetch Transactions
-            const { data: transData } = await supabase.from('transactions').select('*').order('due_date', { ascending: false });
+            const { data: transData } = await supabase.from('transactions').select('*, transaction_attachments(*)').order('due_date', { ascending: false });
             if (transData) {
                 setTransactions(transData.map((t: any) => ({
                     id: t.id,
@@ -137,7 +137,15 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     checklistId: t.checklist_id,
                     createdBy: t.created_by,
                     notes: t.notes,
-                    attachmentUrl: t.attachment_url
+                    attachmentUrl: t.attachment_url,
+                    attachments: t.transaction_attachments?.map((a: any) => ({
+                        id: a.id,
+                        transactionId: a.transaction_id,
+                        fileUrl: a.file_url,
+                        fileName: a.file_name,
+                        fileType: a.file_type,
+                        createdAt: a.created_at
+                    })) || []
                 })));
             }
 
@@ -320,9 +328,25 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             checklist_id: transaction.checklistId,
             notes: transaction.notes,
             created_by: transaction.createdBy || user?.id,
-            attachment_url: transaction.attachmentUrl
+            attachment_url: transaction.attachmentUrl // Keep purely for backward compat or if needed
         }).select().single();
         if (error) throw error;
+
+        // Add Attachments
+        if (transaction.attachments && transaction.attachments.length > 0) {
+            const attachmentsPayload = transaction.attachments.map(a => ({
+                transaction_id: data.id,
+                file_url: a.fileUrl,
+                file_name: a.fileName,
+                file_type: a.fileType
+            }));
+            const { error: attachError } = await supabase.from('transaction_attachments').insert(attachmentsPayload);
+            if (attachError) {
+                console.error('Error saving attachments:', attachError);
+                alert(`Erro ao salvar anexos: ${attachError.message}`);
+            }
+        }
+
         await fetchData();
         return data as Transaction;
     };
@@ -349,6 +373,46 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         const { error } = await supabase.from('transactions').update(payload).eq('id', id);
         if (error) throw error;
+
+        // Handle Attachments Update
+        // For simplicity in this context, we will rely on the UI sending the "new" list or handling additions separately?
+        // Actually, the easiest way for "edit" is:
+        // 1. Identify which ones are NEW (no ID or strictly new uploads) and INSERT them.
+        // 2. Identify which ones are REMOVED (present in old but not in new list) and DELETE them.
+        // But `updateTransaction` receives partial data. 
+        // If `data.attachments` is provided, we assume it's the FULL desired list or strictly new ones?
+        // Let's assume the UI sends the full list of "desired" attachments (some new, some existing).
+
+        if (data.attachments) {
+            // New uploads will have a temporary ID or missing ID, but existing ones have UUID.
+            const newAttachments = data.attachments.filter(a => !a.transactionId); // Assuming new ones lack transactionId or real ID
+
+            // Insert new ones
+            if (newAttachments.length > 0) {
+                const attachmentsPayload = newAttachments.map(a => ({
+                    transaction_id: id,
+                    file_url: a.fileUrl,
+                    file_name: a.fileName,
+                    file_type: a.fileType
+                }));
+                await supabase.from('transaction_attachments').insert(attachmentsPayload);
+            }
+
+            // For deletion, we need to know what to keep.
+            // The UI should pass the complete list of attachments that should exist.
+            // So we delete anything for this transaction that is NOT in the list of IDs provided.
+            const keepIds = data.attachments.filter(a => a.transactionId).map(a => a.id); // Valid existing IDs
+
+            if (keepIds.length > 0) {
+                await supabase.from('transaction_attachments').delete().eq('transaction_id', id).not('id', 'in', `(${keepIds.join(',')})`);
+            } else {
+                // If list provided but no keepIds, it means delete all earlier attachments (if explicitly empty list passed)
+                // Or we might be safer only deleting if explicit. 
+                // Let's assume if data.attachments is sent, it replaces the set.
+                await supabase.from('transaction_attachments').delete().eq('transaction_id', id);
+            }
+        }
+
         await fetchData();
     };
 
