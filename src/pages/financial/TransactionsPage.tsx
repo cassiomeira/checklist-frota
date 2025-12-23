@@ -9,6 +9,8 @@ export const TransactionsPage: React.FC = () => {
     const { transactions, accounts, suppliers, customers, drivers, addTransaction, addTransactions, updateTransaction, deleteTransaction, deleteTransactions } = useFinancial();
     const { vehicles } = useFleet();
 
+    // Force deploy validation
+
     // Filters
     const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
     const [typeFilter, setTypeFilter] = useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL');

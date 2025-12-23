@@ -136,7 +136,8 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                     tripId: t.trip_id, // [NEW] Link to trip
                     checklistId: t.checklist_id,
                     createdBy: t.created_by,
-                    notes: t.notes
+                    notes: t.notes,
+                    attachmentUrl: t.attachment_url
                 })));
             }
 
