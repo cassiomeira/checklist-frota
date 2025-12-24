@@ -126,7 +126,17 @@ export interface Transaction {
     commissionValue?: number;
     createdBy?: string;
     notes?: string;
-    attachmentUrl?: string;
+    attachmentUrl?: string; // @deprecated - kept for backward compatibility during migration
+    attachments?: TransactionAttachment[];
+}
+
+export interface TransactionAttachment {
+    id: string;
+    transactionId: string;
+    fileUrl: string;
+    fileName: string;
+    fileType: string;
+    createdAt: string;
 }
 
 export interface Trip {
