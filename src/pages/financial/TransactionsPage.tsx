@@ -523,13 +523,7 @@ export const TransactionsPage: React.FC = () => {
                                             type="checkbox"
                                             className="w-4 h-4 rounded accent-industrial-accent"
                                             checked={selectedIds.includes(tx.id)}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setSelectedIds(prev => [...prev, tx.id]);
-                                                } else {
-                                                    setSelectedIds(prev => prev.filter(id => id !== tx.id));
-                                                }
-                                            }}
+                                            onChange={() => toggleSelection(tx.id)}
                                         />
                                     </td>
                                     <td className="p-4 font-mono text-sm text-gray-300">
