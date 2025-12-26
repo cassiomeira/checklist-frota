@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useFinancial } from '../../store/FinancialContext';
 import { useFleet } from '../../store/FleetContext';
-import { Plus, Filter, CheckCircle2, AlertCircle, Trash2, Search, Download } from 'lucide-react';
+import { Plus, Filter, CheckCircle2, AlertCircle, Trash2, Search, Download, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import clsx from 'clsx';
 import type { Transaction, TransactionAttachment } from '../../types';
 import { Paperclip } from 'lucide-react';
@@ -16,7 +16,12 @@ export const TransactionsPage: React.FC = () => {
     // Filters
     const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
     const [typeFilter, setTypeFilter] = useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL');
-    const [statusFilter] = useState<'ALL' | 'PENDING' | 'PAID'>('ALL');
+    const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'PAID'>('ALL');
+
+    // Sorting
+    const [sortConfig, setSortConfig] = useState<{ key: keyof Transaction | null, direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
+
+    // Selection
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
     // Form / Modal State
@@ -83,8 +88,30 @@ export const TransactionsPage: React.FC = () => {
     // Search
     const [searchTerm, setSearchTerm] = useState('');
 
+    // Handlers
+    const handleSort = (key: keyof Transaction) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    const toggleSelection = (id: string) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.length === filteredTransactions.length && filteredTransactions.length > 0) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(filteredTransactions.map(t => t.id));
+        }
+    };
+
     const filteredTransactions = useMemo(() => {
-        return transactions.filter(t => {
+        let filtered = transactions.filter(t => {
             // Global Search Override
             if (searchTerm) {
                 return t.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -95,7 +122,30 @@ export const TransactionsPage: React.FC = () => {
             if (statusFilter !== 'ALL' && t.status !== statusFilter) return false;
             return true;
         });
-    }, [transactions, monthFilter, typeFilter, statusFilter, searchTerm]);
+
+        // Apply sorting
+        if (sortConfig.key) {
+            filtered.sort((a, b) => {
+                const aVal = a[sortConfig.key!];
+                const bVal = b[sortConfig.key!];
+
+                if (aVal === undefined || bVal === undefined) return 0;
+
+                let comparison = 0;
+                if (typeof aVal === 'string' && typeof bVal === 'string') {
+                    comparison = aVal.localeCompare(bVal);
+                } else if (typeof aVal === 'number' && typeof bVal === 'number') {
+                    comparison = aVal - bVal;
+                } else {
+                    comparison = String(aVal).localeCompare(String(bVal));
+                }
+
+                return sortConfig.direction === 'asc' ? comparison : -comparison;
+            });
+        }
+
+        return filtered;
+    }, [transactions, monthFilter, typeFilter, statusFilter, searchTerm, sortConfig]);
 
     const totals = useMemo(() => {
         return filteredTransactions.reduce((acc, t) => {
@@ -356,24 +406,42 @@ export const TransactionsPage: React.FC = () => {
                     <p className={clsx("text-2xl font-mono font-bold", balanceStats.closingBalance >= 0 ? "text-emerald-400" : "text-red-400")}>
                         R$ {balanceStats.closingBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
-                    <p className="text-[10px] text-gray-500 mt-1">Saldo Anterior + Resultado do Mês</p>
                 </div>
             </div>
 
             {/* Filters */}
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                {['ALL', 'INCOME', 'EXPENSE'].map(t => (
-                    <button
-                        key={t}
-                        onClick={() => setTypeFilter(t as any)}
-                        className={clsx(
-                            "px-4 py-2 rounded-lg font-bold text-sm transition-colors",
-                            typeFilter === t ? "bg-slate-700 text-white" : "text-gray-500 hover:bg-slate-800"
-                        )}
-                    >
-                        {t === 'ALL' ? 'Todos' : t === 'INCOME' ? 'Receitas' : 'Despesas'}
-                    </button>
-                ))}
+            <div className="space-y-3 mb-6">
+                {/* Type Filters */}
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                    {['ALL', 'INCOME', 'EXPENSE'].map(t => (
+                        <button
+                            key={t}
+                            onClick={() => setTypeFilter(t as any)}
+                            className={clsx(
+                                "px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap",
+                                typeFilter === t ? "bg-slate-700 text-white" : "text-gray-500 hover:bg-slate-800"
+                            )}
+                        >
+                            {t === 'ALL' ? 'Todos' : t === 'INCOME' ? 'Receitas' : 'Despesas'}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Status Filters */}
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                    {[{ key: 'ALL', label: 'Todas' }, { key: 'PENDING', label: 'A Pagar' }, { key: 'PAID', label: 'Pagas' }].map(({ key, label }) => (
+                        <button
+                            key={key}
+                            onClick={() => setStatusFilter(key as any)}
+                            className={clsx(
+                                "px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap",
+                                statusFilter === key ? "bg-industrial-accent text-white" : "text-gray-500 hover:bg-slate-800"
+                            )}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* List */}
@@ -387,21 +455,63 @@ export const TransactionsPage: React.FC = () => {
                                         type="checkbox"
                                         className="w-4 h-4 rounded accent-industrial-accent"
                                         checked={filteredTransactions.length > 0 && selectedIds.length === filteredTransactions.length}
-                                        onChange={(e) => {
-                                            if (e.target.checked) {
-                                                setSelectedIds(filteredTransactions.map(t => t.id));
-                                            } else {
-                                                setSelectedIds([]);
-                                            }
-                                        }}
+                                        onChange={toggleSelectAll}
                                     />
                                 </th>
-                                <th className="p-4">Vencimento</th>
+                                <th
+                                    className="p-4 cursor-pointer hover:text-white transition-colors select-none"
+                                    onClick={() => handleSort('dueDate')}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        Vencimento
+                                        {sortConfig.key === 'dueDate' ? (
+                                            sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                                        ) : (
+                                            <ArrowUpDown size={14} className="opacity-40" />
+                                        )}
+                                    </div>
+                                </th>
                                 <th className="p-4">Pagamento</th>
                                 <th className="p-4">Descrição</th>
-                                <th className="p-4">Categoria</th>
-                                <th className="p-4">Valor</th>
-                                <th className="p-4">Status</th>
+                                <th
+                                    className="p-4 cursor-pointer hover:text-white transition-colors select-none"
+                                    onClick={() => handleSort('category')}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        Categoria
+                                        {sortConfig.key === 'category' ? (
+                                            sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                                        ) : (
+                                            <ArrowUpDown size={14} className="opacity-40" />
+                                        )}
+                                    </div>
+                                </th>
+                                <th
+                                    className="p-4 cursor-pointer hover:text-white transition-colors select-none"
+                                    onClick={() => handleSort('amount')}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        Valor
+                                        {sortConfig.key === 'amount' ? (
+                                            sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                                        ) : (
+                                            <ArrowUpDown size={14} className="opacity-40" />
+                                        )}
+                                    </div>
+                                </th>
+                                <th
+                                    className="p-4 cursor-pointer hover:text-white transition-colors select-none"
+                                    onClick={() => handleSort('status')}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        Status
+                                        {sortConfig.key === 'status' ? (
+                                            sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                                        ) : (
+                                            <ArrowUpDown size={14} className="opacity-40" />
+                                        )}
+                                    </div>
+                                </th>
                                 <th className="p-4 text-right">Ações</th>
                             </tr>
                         </thead>
@@ -766,6 +876,32 @@ export const TransactionsPage: React.FC = () => {
                     </div>
                 )
             }
+
+            {/* Selection Summary Panel */}
+            {selectedIds.length > 0 && (
+                <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-industrial-accent/90 to-blue-600/90 backdrop-blur-md border-t border-white/20 shadow-2xl p-4 animate-fade-in z-50">
+                    <div className="max-w-7xl mx-auto flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2 text-white">
+                                <CheckCircle2 size={20} />
+                                <span className="font-bold">{selectedIds.length} {selectedIds.length === 1 ? 'item selecionado' : 'itens selecionados'}</span>
+                            </div>
+                            <div className="text-white font-mono text-xl font-bold">
+                                Total: R$ {filteredTransactions
+                                    .filter(t => selectedIds.includes(t.id))
+                                    .reduce((sum, t) => sum + (t.type === 'INCOME' ? t.amount : -t.amount), 0)
+                                    .toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setSelectedIds([])}
+                            className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg font-bold transition-colors"
+                        >
+                            Limpar Seleção
+                        </button>
+                    </div>
+                </div>
+            )}
         </div >
     );
 };

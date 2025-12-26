@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Wallet, Users, Building2, TrendingUp, TrendingDown, DollarSign, Droplet, Calculator, AlertCircle } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
@@ -6,6 +6,7 @@ import { useFinancial } from '../store/FinancialContext';
 import { useFleet } from '../store/FleetContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend as RechartsLegend } from 'recharts';
 import clsx from 'clsx';
+import { PaymentAlertBanner } from '../components/PaymentAlertBanner';
 
 export const FinancialDashboard: React.FC = () => {
     const { accounts, transactions, fuelEntries, trips } = useFinancial();
@@ -118,12 +119,25 @@ export const FinancialDashboard: React.FC = () => {
         });
     }, [transactions]);
 
+    // Filter transactions due today
+    const dueTodayTransactions = useMemo(() => {
+        const today = new Date().toISOString().split('T')[0];
+        return transactions.filter(t =>
+            t.status === 'PENDING' &&
+            t.type === 'EXPENSE' &&
+            t.dueDate === today
+        );
+    }, [transactions]);
+
     return (
         <div className="max-w-7xl mx-auto space-y-8 pb-20">
             <header className="mb-8">
                 <h1 className="text-4xl font-black text-white tracking-tight leading-none">Gestão Financeira</h1>
                 <p className="text-gray-400 text-lg mt-2">Visão geral do fluxo de caixa e pendências</p>
             </header>
+
+            {/* Payment Alert Banner */}
+            <PaymentAlertBanner dueTodayTransactions={dueTodayTransactions} />
 
             {/* Metrics Overview */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
