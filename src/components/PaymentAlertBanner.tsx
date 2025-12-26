@@ -59,10 +59,10 @@ export function PaymentAlertBanner({ dueTodayTransactions }: PaymentAlertBannerP
                     <AlertCircle className="w-6 h-6 mt-1 flex-shrink-0" />
                     <div className="flex-1">
                         <h3 className="font-bold text-lg mb-1">
-                            ⚠️ Contas a Pagar Vencendo Hoje
+                            ⚠️ Contas a Pagar Vencidas ou Vencendo Hoje
                         </h3>
                         <p className="text-sm opacity-90 mb-2">
-                            {dueTodayTransactions.length} conta(s) pendente(s) com vencimento hoje
+                            {dueTodayTransactions.length} conta(s) pendente(s) com vencimento até hoje
                         </p>
                         <div className="space-y-1 text-sm">
                             {dueTodayTransactions.slice(0, 3).map(tx => (

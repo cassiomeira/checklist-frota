@@ -119,13 +119,13 @@ export const FinancialDashboard: React.FC = () => {
         });
     }, [transactions]);
 
-    // Filter transactions due today
+    // Filter transactions due today or overdue
     const dueTodayTransactions = useMemo(() => {
         const today = new Date().toISOString().split('T')[0];
         return transactions.filter(t =>
             t.status === 'PENDING' &&
             t.type === 'EXPENSE' &&
-            t.dueDate === today
+            t.dueDate <= today  // Include overdue transactions
         );
     }, [transactions]);
 
